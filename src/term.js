@@ -2795,6 +2795,34 @@ Terminal.prototype.resize = function(x, y) {
   this.normal = null;
 };
 
+/**
+ * Resize the terminal to fill its containing element.
+ * 
+ * @returns Object with the new colums (cols field) and rows (rows field) information.
+ */
+Terminal.prototype.resizeToContainer = function() {
+  var rect;
+  var charWidth;
+  var charHeight;
+  var newCols;
+  var newRows;
+  var range;
+  var lineEl = this.children[0];
+
+  range = this.document.createRange();
+  range.setStart(lineEl, 0);
+  range.setEnd(lineEl, lineEl.childNodes.length);
+  
+  rect = range.getBoundingClientRect();
+  charWidth = rect.width / this.cols;
+  charHeight = rect.height;
+  newCols = Math.floor(this.element.clientWidth / charWidth);
+  newRows = Math.floor(this.element.clientHeight / charHeight);
+  
+  this.resize(newCols, newRows);
+  return {cols: newCols, rows: newRows};
+};
+
 Terminal.prototype.updateRange = function(y) {
   if (y < this.refreshStart) this.refreshStart = y;
   if (y > this.refreshEnd) this.refreshEnd = y;
