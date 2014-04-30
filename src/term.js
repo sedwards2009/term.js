@@ -1351,30 +1351,26 @@ Terminal.prototype.refreshBlink = function() {
 
 Terminal.prototype.scroll = function() {
   var row;
-
-  if (++this.ybase === this.scrollback) {
-    this.ybase = this.ybase / 2 | 0;
+  var lastline;
+  
+  ++this.ybase;
+  // See if we have exceeded the scrollbar buffer length.
+  if (this.ybase === this.scrollback) {
+    // Drop the oldest line out of the scrollback buffer.
+    this.ybase--;
     this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
   }
 
   this.ydisp = this.ybase;
 
   // last line
-  row = this.ybase + this.rows - 1;
+  lastline = this.ybase + this.rows - 1;
 
   // subtract the bottom scroll region
-  row -= this.rows - 1 - this.scrollBottom;
+  row = lastline - (this.rows - 1 - this.scrollBottom);
 
-  if (row === this.lines.length) {
-    // potential optimization:
-    // pushing is faster than splicing
-    // when they amount to the same
-    // behavior.
-    this.lines.push(this.blankLine());
-  } else {
-    // add our new line
-    this.lines.splice(row, 0, this.blankLine());
-  }
+  // add our new line
+  this.lines.splice(row, 0, this.blankLine());
 
   if (this.scrollTop !== 0) {
     if (this.ybase !== 0) {
