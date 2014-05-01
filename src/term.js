@@ -670,6 +670,14 @@ Terminal.insertStyle = function(document, bg, fg) {
   head.insertBefore(style, head.firstChild);
 };
 
+Terminal.prototype._getLine = function(row) {
+  return this.lines[row];
+};
+
+Terminal.prototype._getChildDiv = function(y) {
+  return this.children[y];
+};
+
 /**
  * Open Terminal
  */
@@ -1311,8 +1319,8 @@ Terminal.prototype.refresh = function(start, end) {
     if (attr !== this.defAttr) {
       out += '</span>';
     }
-
-    this.children[y].innerHTML = out;
+    
+    this._getChildDiv(y).innerHTML = out;
   }
 
   if (parent) parent.appendChild(this.element);
@@ -1494,7 +1502,7 @@ Terminal.prototype.write = function(data) {
                 }
               }
 
-              this.lines[this.y + this.ybase][this.x] = [this.curAttr, ch];
+              this._getLine(this.y + this.ybase)[this.x] = [this.curAttr, ch];
               this.x++;
               this.updateRange(this.y);
 
@@ -2875,9 +2883,8 @@ Terminal.prototype.nextStop = function(x) {
 };
 
 Terminal.prototype.eraseRight = function(x, y) {
-  var line = this.lines[this.ybase + y]
-    , ch = [this.eraseAttr(), ' ']; // xterm
-
+  var line = this._getLine(this.ybase + y);
+  var ch = [this.eraseAttr(), ' ']; // xterm
 
   for (; x < this.cols; x++) {
     line[x] = ch;
@@ -2887,11 +2894,14 @@ Terminal.prototype.eraseRight = function(x, y) {
 };
 
 Terminal.prototype.eraseLeft = function(x, y) {
-  var line = this.lines[this.ybase + y]
-    , ch = [this.eraseAttr(), ' ']; // xterm
+  var line = this._getLine(this.ybase + y);
+  var ch = [this.eraseAttr(), ' ']; // xterm
 
   x++;
-  while (x--) line[x] = ch;
+  while (x !== 0) {
+    x--;
+    line[x] = ch;
+  }
 
   this.updateRange(y);
 };
@@ -3370,7 +3380,7 @@ Terminal.prototype.deviceStatus = function(params) {
 // CSI Ps @
 // Insert Ps (Blank) Character(s) (default = 1) (ICH).
 Terminal.prototype.insertChars = function(params) {
-  var param, row, j, ch;
+  var param, row, j, ch, line;
 
   param = params[0];
   if (param < 1) param = 1;
@@ -3380,8 +3390,9 @@ Terminal.prototype.insertChars = function(params) {
   ch = [this.eraseAttr(), ' ']; // xterm
 
   while (param-- && j < this.cols) {
-    this.lines[row].splice(j++, 0, ch);
-    this.lines[row].pop();
+    line = this._getLine(row);
+    line.splice(j++, 0, ch);
+    line.pop();
   }
 };
 
@@ -3432,6 +3443,7 @@ Terminal.prototype.insertLines = function(params) {
   while (param--) {
     // test: echo -e '\e[44m\e[1L\e[0m'
     // blankLine(true) - xterm/linux behavior
+    this._getLine(row);
     this.lines.splice(row, 0, this.blankLine(true));
     this.lines.splice(j, 1);
   }
@@ -3456,6 +3468,7 @@ Terminal.prototype.deleteLines = function(params) {
   while (param--) {
     // test: echo -e '\e[44m\e[1M\e[0m'
     // blankLine(true) - xterm/linux behavior
+    this._getLine(j + 1);
     this.lines.splice(j + 1, 0, this.blankLine(true));
     this.lines.splice(row, 1);
   }
@@ -3468,7 +3481,7 @@ Terminal.prototype.deleteLines = function(params) {
 // CSI Ps P
 // Delete Ps Character(s) (default = 1) (DCH).
 Terminal.prototype.deleteChars = function(params) {
-  var param, row, ch;
+  var param, row, ch, line;
 
   param = params[0];
   if (param < 1) param = 1;
@@ -3477,15 +3490,16 @@ Terminal.prototype.deleteChars = function(params) {
   ch = [this.eraseAttr(), ' ']; // xterm
 
   while (param--) {
-    this.lines[row].splice(this.x, 1);
-    this.lines[row].push(ch);
+    line = this.lines[row];
+    line.splice(this.x, 1);
+    line.push(ch);
   }
 };
 
 // CSI Ps X
 // Erase Ps Character(s) (default = 1) (ECH).
 Terminal.prototype.eraseChars = function(params) {
-  var param, row, j, ch;
+  var param, row, j, ch, line;
 
   param = params[0];
   if (param < 1) param = 1;
@@ -3493,9 +3507,11 @@ Terminal.prototype.eraseChars = function(params) {
   row = this.y + this.ybase;
   j = this.x;
   ch = [this.eraseAttr(), ' ']; // xterm
-
+  line = this._getLine(row);
+  
   while (param-- && j < this.cols) {
-    this.lines[row][j++] = ch;
+    line[j] = ch;
+    j++;
   }
 };
 
@@ -4105,10 +4121,13 @@ Terminal.prototype.cursorBackwardTab = function(params) {
 // CSI Ps b  Repeat the preceding graphic character Ps times (REP).
 Terminal.prototype.repeatPrecedingCharacter = function(params) {
   var param = params[0] || 1
-    , line = this.lines[this.ybase + this.y]
+    , line = this._getLine(this.ybase + this.y)
     , ch = line[this.x - 1] || [this.defAttr, ' '];
 
-  while (param--) line[this.x++] = ch;
+  while (param--) {
+    line[this.x] = ch;
+    this.x++;
+  }
 };
 
 // CSI Ps g  Tab Clear (TBC).
@@ -4297,7 +4316,7 @@ Terminal.prototype.setAttrInRectangle = function(params) {
     , i;
 
   for (; t < b + 1; t++) {
-    line = this.lines[this.ybase + t];
+    line = this._getLine(this.ybase + t);
     for (i = l; i < r; i++) {
       line[i] = [attr, line[i][1]];
     }
@@ -4470,7 +4489,7 @@ Terminal.prototype.fillRectangle = function(params) {
     , i;
 
   for (; t < b + 1; t++) {
-    line = this.lines[this.ybase + t];
+    line = this._getLine(this.ybase + t);
     for (i = l; i < r; i++) {
       line[i] = [line[i][0], String.fromCharCode(ch)];
     }
@@ -4516,7 +4535,7 @@ Terminal.prototype.eraseRectangle = function(params) {
   ch = [this.eraseAttr(), ' ']; // xterm?
 
   for (; t < b + 1; t++) {
-    line = this.lines[this.ybase + t];
+    line = this._getLine(this.ybase + t);
     for (i = l; i < r; i++) {
       line[i] = ch;
     }
@@ -4600,12 +4619,13 @@ Terminal.prototype.insertColumns = function() {
   var param = params[0]
     , l = this.ybase + this.rows
     , ch = [this.eraseAttr(), ' '] // xterm?
-    , i;
+    , i, line;
 
   while (param--) {
     for (i = this.ybase; i < l; i++) {
-      this.lines[i].splice(this.x + 1, 0, ch);
-      this.lines[i].pop();
+      line = this._getLine(i);
+      line.splice(this.x + 1, 0, ch);
+      line.pop();
     }
   }
 
@@ -4619,12 +4639,13 @@ Terminal.prototype.deleteColumns = function() {
   var param = params[0]
     , l = this.ybase + this.rows
     , ch = [this.eraseAttr(), ' '] // xterm?
-    , i;
+    , i, line;
 
   while (param--) {
     for (i = this.ybase; i < l; i++) {
-      this.lines[i].splice(this.x, 1);
-      this.lines[i].push(ch);
+      line = this._getLine(i);
+      line.splice(this.x, 1);
+      line.push(ch);
     }
   }
 
@@ -4700,7 +4721,7 @@ Terminal.prototype.enterSearch = function(down) {
   for (var i = 0; i < this.entryPrefix.length; i++) {
     //this.lines[bottom][i][0] = (this.defAttr & ~0x1ff) | 4;
     //this.lines[bottom][i][1] = this.entryPrefix[i];
-    this.lines[bottom][i] = [
+    this.getLine(bottom)[i] = [
       (this.defAttr & ~0x1ff) | 4,
       this.entryPrefix[i]
     ];
@@ -4793,7 +4814,8 @@ Terminal.prototype.selectText = function(x1, x2, y1, y2) {
     , x
     , y
     , xl
-    , attr;
+    , attr
+    , line;
 
   if (this._selected) {
     ox1 = this._selected.x1;
@@ -4825,13 +4847,15 @@ Terminal.prototype.selectText = function(x1, x2, y1, y2) {
       if (y === oy2) {
         xl = ox2;
       }
+      
+      line = this._getLine(y);
       for (; x <= xl; x++) {
-        if (this.lines[y][x].old != null) {
+        if (line[x].old != null) {
           //this.lines[y][x][0] = this.lines[y][x].old;
           //delete this.lines[y][x].old;
-          attr = this.lines[y][x].old;
-          delete this.lines[y][x].old;
-          this.lines[y][x] = [attr, this.lines[y][x][1]];
+          attr = line[x].old;
+          delete lines[x].old;
+          line[x] = [attr, line[x][1]];
         }
       }
     }
@@ -4872,16 +4896,17 @@ Terminal.prototype.selectText = function(x1, x2, y1, y2) {
     if (y === y2) {
       xl = x2;
     }
+    line = this._getLine(y);
     for (; x <= xl; x++) {
       //this.lines[y][x].old = this.lines[y][x][0];
       //this.lines[y][x][0] &= ~0x1ff;
       //this.lines[y][x][0] |= (0x1ff << 9) | 4;
-      attr = this.lines[y][x][0];
-      this.lines[y][x] = [
+      attr = line[x][0];
+      line[x] = [
         (attr & ~0x1ff) | ((0x1ff << 9) | 4),
-        this.lines[y][x][1]
+        line[x][1]
       ];
-      this.lines[y][x].old = attr;
+      line[x].old = attr;
     }
   }
 
@@ -4905,7 +4930,8 @@ Terminal.prototype.grabText = function(x1, x2, y1, y2) {
     , x
     , y
     , xl
-    , tmp;
+    , tmp
+    , line;
 
   if (y2 < y1) {
     tmp = x2;
@@ -4931,8 +4957,9 @@ Terminal.prototype.grabText = function(x1, x2, y1, y2) {
     if (y === y2) {
       xl = x2;
     }
+    line = this._getLine(y);
     for (; x <= xl; x++) {
-      ch = this.lines[y][x][1];
+      ch = line[x][1];
       if (ch === ' ') {
         buf += ch;
         continue;
@@ -4951,7 +4978,7 @@ Terminal.prototype.grabText = function(x1, x2, y1, y2) {
   // If we're not at the end of the
   // line, don't add a newline.
   for (x = x2, y = y2; x < this.cols; x++) {
-    if (this.lines[y][x][1] !== ' ') {
+    if (this._getLine(y)[x][1] !== ' ') {
       out = out.slice(0, -1);
       break;
     }
@@ -5136,7 +5163,7 @@ Terminal.prototype.keySelect = function(ev, key) {
     var saw_space = false;
 
     for (;;) {
-      var line = this.lines[yb + y];
+      var line = this._getLine(yb + y);
       while (x < this.cols) {
         if (line[x][1] <= ' ') {
           saw_space = true;
@@ -5180,7 +5207,7 @@ Terminal.prototype.keySelect = function(ev, key) {
     var yb = this.ydisp;
 
     for (;;) {
-      var line = this.lines[yb + y];
+      var line = this._getLine(yb + y);
       var saw_space = x > 0 && line[x][1] > ' ' && line[x - 1][1] > ' ';
       while (x >= 0) {
         if (line[x][1] <= ' ') {
@@ -5225,7 +5252,7 @@ Terminal.prototype.keySelect = function(ev, key) {
     if (x >= this.cols) x--;
 
     for (;;) {
-      var line = this.lines[yb + y];
+      var line = this._getLine(yb + y);
       while (x < this.cols) {
         if (line[x][1] <= ' ') {
           x++;
@@ -5272,7 +5299,7 @@ Terminal.prototype.keySelect = function(ev, key) {
     if (key === '0') {
       this.x = 0;
     } else if (key === '^') {
-      var line = this.lines[this.ydisp + this.y];
+      var line = this._getLine(this.ydisp + this.y);
       var x = 0;
       while (x < this.cols) {
         if (line[x][1] > ' ') {
@@ -5294,7 +5321,7 @@ Terminal.prototype.keySelect = function(ev, key) {
 
   if (key === '$') {
     var ox = this.x;
-    var line = this.lines[this.ydisp + this.y];
+    var line = this._getLine(this.ydisp + this.y);
     var x = this.cols - 1;
     while (x >= 0) {
       if (line[x][1] > ' ') {
@@ -5375,7 +5402,7 @@ Terminal.prototype.keySelect = function(ev, key) {
     }
 
     for (;;) {
-      line = this.lines[yb + y];
+      line = this._getLine(yb + y);
 
       for (i = 0; i < this.cols; i++) {
         if (line[i][1] > ' ') {
@@ -5475,7 +5502,7 @@ Terminal.prototype.keySearch = function(ev, key) {
       : !this.searchDown;
 
     for (;;) {
-      line = this.lines[y];
+      line = this.getLine(y);
 
       while (x < this.cols) {
         for (i = 0; i < entry.length; i++) {
@@ -5547,8 +5574,8 @@ Terminal.prototype.keySearch = function(ev, key) {
     this.entry = this.entry.slice(0, -1);
     var i = this.entryPrefix.length + this.entry.length;
     //this.lines[bottom][i][1] = ' ';
-    this.lines[bottom][i] = [
-      this.lines[bottom][i][0],
+    this._getLine(bottom)[i] = [
+      this._getLine(bottom)[i][0],
       ' '
     ];
     this.x--;
@@ -5563,7 +5590,7 @@ Terminal.prototype.keySearch = function(ev, key) {
     var i = this.entryPrefix.length + this.entry.length - 1;
     //this.lines[bottom][i][0] = (this.defAttr & ~0x1ff) | 4;
     //this.lines[bottom][i][1] = key;
-    this.lines[bottom][i] = [
+    this._getLine(bottom)[i] = [
       (this.defAttr & ~0x1ff) | 4,
       key
     ];
