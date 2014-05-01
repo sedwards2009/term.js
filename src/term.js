@@ -1355,7 +1355,7 @@ Terminal.prototype.scroll = function() {
   
   ++this.ybase;
   // See if we have exceeded the scrollbar buffer length.
-  if (this.ybase === this.scrollback) {
+  if (this.ybase > this.scrollback) {
     // Drop the oldest line out of the scrollback buffer.
     this.ybase--;
     this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
