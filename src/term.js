@@ -2716,71 +2716,79 @@ Terminal.prototype.error = function() {
   this.context.console.error.apply(this.context.console, args);
 };
 
-Terminal.prototype.resize = function(x, y) {
-  var line
-    , el
-    , i
-    , j
-    , ch;
+Terminal.prototype.resize = function(newcols, newrows) {
+  var line;
+  var el;
+  var i;
+  var j;
+  var ch;
 
-  if (x < 1) x = 1;
-  if (y < 1) y = 1;
+  newcols = Math.max(newcols, 1);
+  newrows = Math.max(newrows, 1);
 
   // resize cols
-  j = this.cols;
-  if (j < x) {
+  if (this.cols < newcols) {
+    // Add chars to the lines to match the new (bigger) cols value.
     ch = [this.defAttr, ' ']; // does xterm use the default attr?
-    i = this.lines.length;
-    while (i--) {
-      while (this.lines[i].length < x) {
-        this.lines[i].push(ch);
+    for (i = this.lines.length-1; i >= 0; i--) {
+      line = this.lines[i];
+      while (line.length < newcols) {
+        line.push(ch);
       }
     }
-  } else if (j > x) {
-    i = this.lines.length;
-    while (i--) {
-      while (this.lines[i].length > x) {
-        this.lines[i].pop();
+  } else if (this.cols > newcols) {
+    // Remove chars from the lines to match the new (smaller) cols value.
+    for (i = this.lines.length-1; i >= 0; i--) {
+      line = this.lines[i];
+      while (line.length > newcols) {
+        line.pop();
       }
     }
   }
-  this.setupStops(j);
-  this.cols = x;
+  this.setupStops(this.cols);
+  this.cols = newcols;
 
   // resize rows
-  j = this.rows;
-  if (j < y) {
+  if (this.rows < newrows) {
+    // Add new rows to match the new bigger rows value.
     el = this.element;
-    while (j++ < y) {
-      if (this.lines.length < y + this.ybase) {
+    for (j = this.rows; j < newrows; j++) {
+      if (this.lines.length < newrows + this.ybase) {
         this.lines.push(this.blankLine());
       }
-      if (this.children.length < y) {
+      if (this.children.length < newrows) {
         line = this.document.createElement('div');
         el.appendChild(line);
         this.children.push(line);
       }
     }
-  } else if (j > y) {
-    while (j-- > y) {
-      if (this.lines.length > y + this.ybase) {
+  } else if (this.rows > newrows) {
+    // Remove rows to match the new smaller rows value.
+    for (j = this.rows; j > newrows; j--) {
+      if (this.lines.length > newrows + this.ybase) {
         this.lines.pop();
       }
-      if (this.children.length > y) {
+      if (this.children.length > newrows) {
         el = this.children.pop();
-        if (!el) continue;
+        if (!el) {
+          continue;
+        }
         el.parentNode.removeChild(el);
       }
     }
   }
-  this.rows = y;
+  this.rows = newrows;
 
   // make sure the cursor stays on screen
-  if (this.y >= y) this.y = y - 1;
-  if (this.x >= x) this.x = x - 1;
+  if (this.y >= newrows) {
+    this.y = newrows - 1;
+  }
+  if (this.x >= newcols) {
+    this.x = newcols - 1;
+  }
 
   this.scrollTop = 0;
-  this.scrollBottom = y - 1;
+  this.scrollBottom = newrows - 1;
 
   this.refresh(0, this.rows - 1);
 
