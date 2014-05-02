@@ -696,9 +696,8 @@ Terminal.prototype._getChildDiv = function(y) {
  */
 
 Terminal.prototype.open = function(parent) {
-  var self = this
-    , i = 0
-    , div;
+  var self = this;
+  var i = 0;
 
   this.parent = parent || this.parent;
 
@@ -737,7 +736,9 @@ Terminal.prototype.open = function(parent) {
   this.parent.appendChild(this.element);
 
   // Draw the screen.
-  this.refresh(0, this.rows - 1);
+  if ( !this.physicalScroll) {
+    this.refresh(0, this.rows - 1);
+  }
 
   // Initialize global actions that
   // need to be taken on the document.
@@ -1200,17 +1201,16 @@ Terminal.prototype.refresh = function(start, end) {
     , row;
 
   width = this.cols;
-  y = start;
 
-  if (end >= this.lines.length) {
+  if ( !this.physicalScroll && end >= this.lines.length) {
     this.log('`end` is too large. Most likely a bad CSR.');
     end = this.lines.length - 1;
   }
 
-  for (; y <= end; y++) {
+  for (y = start; y <= end; y++) {
     row = y + this.ydisp;
 
-    line = this.lines[row];
+    line = this._getLine(row);
     out = '';
 
     if (y === this.y
@@ -1371,17 +1371,26 @@ Terminal.prototype.refreshBlink = function() {
 Terminal.prototype.scroll = function() {
   var row;
   var lastline;
-  
-  ++this.ybase;
-  // See if we have exceeded the scrollbar buffer length.
-  if (this.ybase > this.scrollback) {
+
+  if ( ! this.physicalScroll) {
+    // Normal, virtual scrolling.
+    ++this.ybase;
+    // See if we have exceeded the scrollbar buffer length.
+    if (this.ybase > this.scrollback) {
+      // Drop the oldest line out of the scrollback buffer.
+      this.ybase--;
+      this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
+    }
+  } else {
     // Drop the oldest line out of the scrollback buffer.
-    this.ybase--;
     this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
-    
-    if (this.physicalScroll) {
-      this.children[0].className = "terminal-scrollback";
-      this.children.splice(0, 1);
+
+    this.children[0].className = "terminal-scrollback";
+    this.children.splice(0, 1);
+
+    // Trim the scrollback buffer, which is just DIVs.
+    if ((this.element.childNodes.length - this.children.length) > this.scrollback) {
+      this.element.removeChild(this.element.childNodes[0]);
     }
   }
 
@@ -1426,11 +1435,15 @@ Terminal.prototype.write = function(data) {
     , i = 0
     , j
     , cs
-    , ch
-    , scrollatbottom;
+    , ch;
+  var scrollatbottom;
+  var nextzero;
+  var REFRESH_START_NULL = 100000000;
+  var REFRESH_END_NULL = -100000000;
+  var oldy;
 
-  this.refreshStart = this.y;
-  this.refreshEnd = this.y;
+  this.refreshStart = REFRESH_START_NULL;
+  this.refreshEnd = REFRESH_END_NULL;
 
   if (this.ybase !== this.ydisp) {
     this.ydisp = this.ybase;
@@ -1442,9 +1455,11 @@ Terminal.prototype.write = function(data) {
   if (this.physicalScroll) {
     scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
   }
-    
-  // this.log(JSON.stringify(data.replace(/\x1b/g, '^[')));
 
+  // this.log(JSON.stringify(data.replace(/\x1b/g, '^[')));
+  
+  oldy = this.y;
+  
   for (; i < l; i++) {
     ch = data[i];
     switch (this.state) {
@@ -1518,6 +1533,7 @@ Terminal.prototype.write = function(data) {
 
               if (this.x >= this.cols) {
                 this.x = 0;
+                this.updateRange(this.y);
                 this.y++;
                 if (this.y > this.scrollBottom) {
                   this.y--;
@@ -2409,12 +2425,18 @@ Terminal.prototype.write = function(data) {
         }
         break;
     }
-
+    
+    if (this.y !== oldy) {
+      this.updateRange(oldy);
+      this.updateRange(this.y);
+      oldy = this.y;
+    }
+    
     if (this.physicalScroll && this.refreshStart === 0) {
       this.updateRange(this.y);
       this.refresh(this.refreshStart, this.refreshEnd);
-      this.refreshStart = this.y;
-      this.refreshEnd = this.y;
+      this.refreshStart = REFRESH_START_NULL;
+      this.refreshEnd = REFRESH_END_NULL;
     }
   }
 
@@ -2830,8 +2852,8 @@ Terminal.prototype.resize = function(newcols, newrows) {
 
   this.scrollTop = 0;
   this.scrollBottom = newrows - 1;
-
-  this.refresh(0, this.rows - 1);
+  
+  this.refresh(0, this.physicalScroll ? this.lines.length-1 : this.rows - 1);
 
   // it's a real nightmare trying
   // to resize the original
