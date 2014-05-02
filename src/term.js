@@ -132,6 +132,7 @@ var normal = 0
 
 function Terminal(options) {
   var self = this;
+  var i;
 
   if (!(this instanceof Terminal)) {
     return new Terminal(arguments[0], arguments[1], arguments[2]);
@@ -259,11 +260,11 @@ function Terminal(options) {
   this.postfix = '';
 
   this.lines = [];
-  var i = this.rows;
-  while (i--) {
-    this.lines.push(this.blankLine());
+  if ( !this.physicalScroll) {
+    for (i = 0; i< this.rows; i++) {
+      this.lines.push(this.blankLine());
+    }
   }
-
   this.tabs;
   this.setupStops();
 }
@@ -394,7 +395,8 @@ Terminal.defaults = {
   scrollback: 1000,
   screenKeys: false,
   debug: false,
-  useStyle: false
+  useStyle: false,
+  physicalScroll: false
   // programFeatures: false,
   // focusKeys: false,
 };
@@ -671,10 +673,21 @@ Terminal.insertStyle = function(document, bg, fg) {
 };
 
 Terminal.prototype._getLine = function(row) {
+  while (row >= this.lines.length) {
+    this.lines.push(this.blankLine());
+  }
   return this.lines[row];
 };
 
 Terminal.prototype._getChildDiv = function(y) {
+  var div;
+  
+  while (y >= this.children.length) {
+      div = this.document.createElement('div');
+      div.className = "terminal-active";
+      this.element.appendChild(div);
+      this.children.push(div);
+  }
   return this.children[y];
 };
 
@@ -716,10 +729,10 @@ Terminal.prototype.open = function(parent) {
 
   // Create the lines for our terminal.
   this.children = [];
-  for (; i < this.rows; i++) {
-    div = this.document.createElement('div');
-    this.element.appendChild(div);
-    this.children.push(div);
+  if ( !this.physicalScroll) {
+    for (; i < this.rows; i++) {
+      this._getChildDiv(i);
+    }
   }
   this.parent.appendChild(this.element);
 
@@ -1367,6 +1380,11 @@ Terminal.prototype.scroll = function() {
     // Drop the oldest line out of the scrollback buffer.
     this.ybase--;
     this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
+    
+    if (this.physicalScroll) {
+      this.children[0].className = "terminal-scrollback";
+      this.children.splice(0, 1);
+    }
   }
 
   this.ydisp = this.ybase;
@@ -1410,7 +1428,8 @@ Terminal.prototype.write = function(data) {
     , i = 0
     , j
     , cs
-    , ch;
+    , ch
+    , scrollatbottom;
 
   this.refreshStart = this.y;
   this.refreshEnd = this.y;
@@ -1420,6 +1439,12 @@ Terminal.prototype.write = function(data) {
     this.maxRange();
   }
 
+  // Is the terminal scrolled down to the bottom now?
+  scrollatbottom = false;
+  if (this.physicalScroll) {
+    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
+  }
+    
   // this.log(JSON.stringify(data.replace(/\x1b/g, '^[')));
 
   for (; i < l; i++) {
@@ -2386,10 +2411,22 @@ Terminal.prototype.write = function(data) {
         }
         break;
     }
+
+    if (this.physicalScroll && this.refreshStart === 0) {
+      this.updateRange(this.y);
+      this.refresh(this.refreshStart, this.refreshEnd);
+      this.refreshStart = this.y;
+      this.refreshEnd = this.y;
+    }
   }
 
   this.updateRange(this.y);
   this.refresh(this.refreshStart, this.refreshEnd);
+  
+  if (scrollatbottom) {
+    // Scroll the terminal down to the bottom.
+    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
+  }
 };
 
 Terminal.prototype.writeln = function(data) {
@@ -2759,30 +2796,28 @@ Terminal.prototype.resize = function(newcols, newrows) {
   // resize rows
   if (this.rows < newrows) {
     // Add new rows to match the new bigger rows value.
-    el = this.element;
-    for (j = this.rows; j < newrows; j++) {
-      if (this.lines.length < newrows + this.ybase) {
-        this.lines.push(this.blankLine());
-      }
-      if (this.children.length < newrows) {
-        line = this.document.createElement('div');
-        el.appendChild(line);
-        this.children.push(line);
+    if ( !this.physicalScroll) {
+      el = this.element;
+      for (j = this.rows; j < newrows; j++) {
+        if (this.lines.length < newrows + this.ybase) {
+          this.lines.push(this.blankLine());
+        }
+        if (this.children.length < newrows) {
+          line = this.document.createElement('div');
+          el.appendChild(line);
+          this.children.push(line);
+        }
       }
     }
   } else if (this.rows > newrows) {
     // Remove rows to match the new smaller rows value.
-    for (j = this.rows; j > newrows; j--) {
-      if (this.lines.length > newrows + this.ybase) {
-        this.lines.pop();
-      }
-      if (this.children.length > newrows) {
-        el = this.children.pop();
-        if (!el) {
-          continue;
-        }
-        el.parentNode.removeChild(el);
-      }
+    while (this.lines.length > newrows + this.ybase) {
+      this.lines.pop();
+    }
+    
+    while (this.children.length > newrows) {
+      el = this.children.pop();
+      el.parentNode.removeChild(el);
     }
   }
   this.rows = newrows;
