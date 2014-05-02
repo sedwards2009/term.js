@@ -1191,13 +1191,7 @@ Terminal.prototype.refresh = function(start, end) {
     , bg
     , fg
     , flags
-    , row
-    , parent;
-
-  if (end - start >= this.rows / 2) {
-    parent = this.element.parentNode;
-    if (parent) parent.removeChild(this.element);
-  }
+    , row;
 
   width = this.cols;
   y = start;
@@ -1335,8 +1329,6 @@ Terminal.prototype.refresh = function(start, end) {
     
     this._getChildDiv(y).innerHTML = out;
   }
-
-  if (parent) parent.appendChild(this.element);
 };
 
 Terminal.prototype._cursorBlink = function() {
