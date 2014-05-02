@@ -1139,6 +1139,12 @@ Terminal.prototype.bindMouse = function() {
   on(el, wheelEvent, function(ev) {
     if (self.mouseEvents) return;
     if (self.applicationKeypad) return;
+    
+    if (self.physicalScroll) {
+      // Let the mouse whell scroll the DIV.
+      return;
+    }
+    
     if (ev.type === 'DOMMouseScroll') {
       self.scrollDisp(ev.detail < 0 ? -5 : 5);
     } else {
