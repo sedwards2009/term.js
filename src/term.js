@@ -31,6 +31,9 @@
  */
 
 ;(function() {
+  
+var REFRESH_START_NULL = 100000000;
+var REFRESH_END_NULL = -100000000;
 
 /**
  * Terminal Emulation References:
@@ -124,7 +127,9 @@ var normal = 0
   , osc = 3
   , charset = 4
   , dcs = 5
-  , ignore = 6;
+  , ignore = 6
+  , application_start = 7
+  , application = 8;
 
 /**
  * Terminal
@@ -192,6 +197,7 @@ function Terminal(options) {
   this.ydisp = 0;
   this.x = 0;
   this.y = 0;
+  this.oldy = 0;
   this.cursorState = 0;
   this.cursorHidden = false;
   this.convertEol;
@@ -396,7 +402,8 @@ Terminal.defaults = {
   screenKeys: false,
   debug: false,
   useStyle: false,
-  physicalScroll: false
+  physicalScroll: false,
+  applicationModeCookie: null
   // programFeatures: false,
   // focusKeys: false,
 };
@@ -1438,9 +1445,6 @@ Terminal.prototype.write = function(data) {
     , ch;
   var scrollatbottom;
   var nextzero;
-  var REFRESH_START_NULL = 100000000;
-  var REFRESH_END_NULL = -100000000;
-  var oldy;
 
   this.refreshStart = REFRESH_START_NULL;
   this.refreshEnd = REFRESH_END_NULL;
@@ -1458,7 +1462,7 @@ Terminal.prototype.write = function(data) {
 
   // this.log(JSON.stringify(data.replace(/\x1b/g, '^[')));
   
-  oldy = this.y;
+  this.oldy = this.y;
   
   for (; i < l; i++) {
     ch = data[i];
@@ -1558,6 +1562,7 @@ Terminal.prototype.write = function(data) {
             break;
         }
         break;
+
       case escaped:
         switch (ch) {
           // ESC [ Control Sequence Introducer ( CSI is 0x9b).
@@ -1573,7 +1578,14 @@ Terminal.prototype.write = function(data) {
             this.currentParam = 0;
             this.state = osc;
             break;
-
+            
+          // ESC & Application mode
+          case '&':
+            this.params = [];
+            this.currentParam = "";
+            this.state = application_start;
+            break;
+            
           // ESC P Device Control String ( DCS is 0x90).
           case 'P':
             this.params = [];
@@ -1731,7 +1743,7 @@ Terminal.prototype.write = function(data) {
             this.applicationKeypad = false;
             this.state = normal;
             break;
-
+            
           default:
             this.state = normal;
             this.error('Unknown ESC control: %s.', ch);
@@ -2424,12 +2436,59 @@ Terminal.prototype.write = function(data) {
           this.state = normal;
         }
         break;
+        
+      case application_start:
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) {
+          // Add to the current parameter.
+          this.currentParam += ch;  // FIXME don't absorb infinite data here.
+          
+        } else if (ch === ';') {
+          // Parameter separator.
+          this.params.push(this.currentParam);
+          this.currentParam = '';
+          
+        } else if (ch === '\x07') {
+          // End of parameters.
+          this.params.push(this.currentParam);
+          if (this.params[0] === this.applicationModeCookie) {
+            this.state = application;
+            this.emit('application-mode-start', this.params);
+          } else {
+            this.log("Invalid application mode cookie.");
+            this.state = normal;
+          }
+        } else {
+          // Invalid application start.
+          this.state = normal;
+          this.log("Invalid application mode start command.");
+        }
+        break;
+        
+      case application:
+        // Efficiently look for an end-mode character.
+        nextzero = data.indexOf('\x00', i);
+        if (nextzero === -1) {
+          // Send all of the data on right now.
+          this.emit('application-mode-data', data.slice(i));
+          i = l-1;
+          
+        } else if (nextzero === i) {
+          // We are already at the end-mode character.
+          this.emit('application-mode-end');
+          this.state = normal;
+          
+        } else {
+          // Incoming end-mode character. Send the last piece of data.
+          this.emit('application-mode-data', data.slice(i, nextzero));
+          i = nextzero - 1;
+        }
+        break;
     }
     
-    if (this.y !== oldy) {
-      this.updateRange(oldy);
+    if (this.y !== this.oldy) {
+      this.updateRange(this.oldy);
       this.updateRange(this.y);
-      oldy = this.y;
+      this.oldy = this.y;
     }
     
     if (this.physicalScroll && this.refreshStart === 0) {
