@@ -679,6 +679,43 @@ Terminal.insertStyle = function(document, bg, fg) {
   head.insertBefore(style, head.firstChild);
 };
 
+/**
+ * Effectively move all rendered rows into the physical scrollback area.
+ * 
+ * Visually this does nothing because the new rows for the terminal will
+ * not have been rendered or added to the DOM yet. Future terminal rows 
+ * will appear below the old last row in the window.
+ */
+Terminal.prototype.moveRowsToScrollback = function() {
+  // Undraw the cursor.
+  this.cursorState = 0;
+  this.refresh(this.y, this.y);
+  
+  this.lines = [];
+  this.children.forEach(function(kid) {
+    kid.className = "terminal-scrollback";
+  });
+  this.children = [];
+  this.refreshStart = REFRESH_START_NULL;
+  this.refreshEnd = REFRESH_END_NULL;
+  this.x = 0;
+  this.y = 0;
+  this.oldy = 0;
+};
+
+/**
+ * Append a DOM element to the bottom of the terminal.
+ * 
+ * The existing rows in the terminal pushed into the scrollback area and
+ * any new term rendering occurs below the placed element.
+ * 
+ * @param {Element} element The DOM element to append.
+ */
+Terminal.prototype.appendElement = function(element) {
+  this.moveRowsToScrollback();
+  this.element.appendChild(element);
+};
+
 Terminal.prototype._getLine = function(row) {
   while (row >= this.lines.length) {
     this.lines.push(this.blankLine());
