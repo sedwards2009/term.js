@@ -264,7 +264,9 @@ function Terminal(options) {
   this.currentParam = 0;
   this.prefix = '';
   this.postfix = '';
-
+  
+  this._blink = null;
+  
   this.lines = [];
   if ( !this.physicalScroll) {
     for (i = 0; i< this.rows; i++) {
@@ -1395,6 +1397,22 @@ Terminal.prototype.showCursor = function() {
     // Temporarily disabled:
     // this.refreshBlink();
   }
+};
+
+/**
+ * Set cursor blinking on or off.
+ * 
+ * @param {boolean} blink True if the cursor should blink.
+ */
+Terminal.prototype.setCursorBlink = function(blink) {
+  if (this._blink !== null) {
+    clearInterval(this._blink);
+    this._blink = null;
+  }
+  this.cursorBlink = blink;
+  
+  this.showCursor();
+  this.startBlink();
 };
 
 Terminal.prototype.startBlink = function() {
