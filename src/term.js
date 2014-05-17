@@ -2668,7 +2668,13 @@ Terminal.prototype.keyDown = function(ev) {
     // page up
     case 33:
       if (ev.shiftKey) {
-        this.scrollDisp(-(this.rows - 1));
+        if ( !this.physicalScroll) {
+          // Virtual scroll up.
+          this.scrollDisp(-(this.rows - 1));
+        } else {
+          // Scroll using the DOM.
+          this.element.scrollTop = Math.max(0, this.element.scrollTop - (this.element.clientHeight / 2));
+        }
         return cancel(ev);
       } else {
         key = '\x1b[5~';
@@ -2677,7 +2683,14 @@ Terminal.prototype.keyDown = function(ev) {
     // page down
     case 34:
       if (ev.shiftKey) {
-        this.scrollDisp(this.rows - 1);
+        if ( !this.physicalScroll) {
+          // Virtual scroll down.
+          this.scrollDisp(this.rows - 1);
+        } else {
+          // Scroll using the DOM.
+          this.element.scrollTop = Math.min(this.element.scrollHeight - this.element.clientHeight,
+                                            this.element.scrollTop + (this.element.clientHeight / 2));
+        }
         return cancel(ev);
       } else {
         key = '\x1b[6~';
