@@ -54,6 +54,7 @@ var REFRESH_END_NULL = -100000000;
 
 var window = this
   , document = this.document;
+var idCounter = 1;
 
 /**
  * EventEmitter
@@ -142,7 +143,11 @@ function Terminal(options) {
   if (!(this instanceof Terminal)) {
     return new Terminal(arguments[0], arguments[1], arguments[2]);
   }
-
+  
+  // Every term gets a unique ID.
+  this._termId = idCounter;
+  idCounter++;
+  
   EventEmitter.call(this);
 
   if (typeof options === 'number') {
@@ -491,6 +496,45 @@ Terminal.prototype.initGlobal = function() {
 };
 
 /**
+ * Insert an extra style of adding extra padding to the last row in the terminal.
+ * 
+ * This is only relevant when physical scrolling is used. It is desirable
+ * that the first row of the terminal align with the visible top of the
+ * containing element. When using curses based programs like editors you don't want to 
+ * see part of the scrollback cut off and just above the top row of your editor.
+ */
+Terminal.prototype._initLastLinePadding = function() {
+  var style;
+  var doc = this.document;
+  var head = doc.getElementsByTagName('head')[0];
+  if (!head) {
+    return;
+  }
+
+  style = doc.createElement('style');
+  style.id = 'term-padding-style' + this._termId;
+
+  // textContent doesn't work well with IE for <style> elements.
+  style.innerHTML = ''
+    + 'DIV.terminal-active:last-child {\n'
+    + '}\n';
+
+  head.insertBefore(style, head.firstChild);
+};
+
+/**
+ * Set the size of the extra padding for the last row.
+ * 
+ * @param {number} padh The size of the pad in pixels
+ */
+Terminal.prototype._setLastLinePadding = function(padh) {
+  var style;
+  var doc = this.document;
+  style = doc.getElementById('term-padding-style' + this._termId);
+  style.sheet.cssRules[0].style.paddingBottom = '' + padh + 'px';
+};
+
+/**
  * Bind to paste event
  */
 
@@ -789,6 +833,10 @@ Terminal.prototype.open = function(parent) {
   // Initialize global actions that
   // need to be taken on the document.
   this.initGlobal();
+
+  if (this.physicalScroll) {
+    this._initLastLinePadding();
+  }
 
   // Ensure there is a Terminal.focus.
   this.focus();
@@ -1206,6 +1254,12 @@ Terminal.prototype.bindMouse = function() {
  */
 
 Terminal.prototype.destroy = function() {
+  var style;  
+  var doc = this.document;
+  if (this.physicalScroll) {
+    style = doc.getElementById('term-padding-style' + this._termId);
+    style.parentElement.remove(style);
+  }  
   this.readable = false;
   this.writable = false;
   this._events = {};
@@ -3001,6 +3055,7 @@ Terminal.prototype.resizeToContainer = function() {
   var newCols;
   var newRows;
   var range;
+  var scrollatbottom;
   var lineEl = this.children[0];
 
   range = this.document.createRange();
@@ -3012,8 +3067,17 @@ Terminal.prototype.resizeToContainer = function() {
   charHeight = rect.height;
   newCols = Math.floor(this.element.clientWidth / charWidth);
   newRows = Math.floor(this.element.clientHeight / charHeight);
-  
+
   this.resize(newCols, newRows);
+  
+  scrollatbottom = false;
+  if (this.physicalScroll) {
+    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
+  }
+  this._setLastLinePadding(Math.floor(this.element.clientHeight % charHeight));
+  if (scrollatbottom) {
+    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
+  }
   return {cols: newCols, rows: newRows};
 };
 
