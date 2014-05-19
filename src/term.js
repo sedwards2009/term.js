@@ -1258,7 +1258,7 @@ Terminal.prototype.destroy = function() {
   var doc = this.document;
   if (this.physicalScroll) {
     style = doc.getElementById('term-padding-style' + this._termId);
-    style.parentElement.remove(style);
+    style.remove();
   }  
   this.readable = false;
   this.writable = false;
