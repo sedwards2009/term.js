@@ -2618,8 +2618,8 @@ Terminal.prototype.writeln = function(data) {
 // Key Resources:
 // https://developer.mozilla.org/en-US/docs/DOM/KeyboardEvent
 Terminal.prototype.keyDown = function(ev) {
-  var self = this
-    , key;
+  var self = this;
+  var key = null;
 
   switch (ev.keyCode) {
     // backspace
@@ -2648,6 +2648,9 @@ Terminal.prototype.keyDown = function(ev) {
       break;
     // left-arrow
     case 37:
+      if (ev.shiftKey) {
+        break;
+      }
       if (this.applicationCursor) {
         key = '\x1bOD'; // SS3 as ^[O for 7-bit
         //key = '\x8fD'; // SS3 as 0x8f for 8-bit
@@ -2657,6 +2660,9 @@ Terminal.prototype.keyDown = function(ev) {
       break;
     // right-arrow
     case 39:
+      if (ev.shiftKey) {
+        break;
+      }
       if (this.applicationCursor) {
         key = '\x1bOC';
         break;
@@ -2842,11 +2848,19 @@ Terminal.prototype.keyDown = function(ev) {
         } else if (ev.keyCode >= 48 && ev.keyCode <= 57) {
           key = '\x1b' + (ev.keyCode - 48);
         }
+      } else {
+        return true;
       }
       break;
   }
 
-  if (!key) return true;
+  if (key === null) {
+    if (this.emit('unknown-keydown', ev)) {
+      return cancel(ev);
+    } else {
+      return true;
+    }
+  }
 
   if (this.prefixMode) {
     this.leavePrefix();
