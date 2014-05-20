@@ -1548,6 +1548,7 @@ Terminal.prototype.write = function(data) {
     , ch;
   var scrollatbottom;
   var nextzero;
+  var line;
 
   this.refreshStart = REFRESH_START_NULL;
   this.refreshEnd = REFRESH_END_NULL;
@@ -1648,17 +1649,28 @@ Terminal.prototype.write = function(data) {
                 }
               }
 
-              this._getLine(this.y + this.ybase)[this.x] = [this.curAttr, ch];
+              line = this._getLine(this.y + this.ybase);
+              
+              if (this.insertMode) {
+                // Push the characters out of the way to make space.
+                line.splice(this.x, 0, [this.curAttr, ' ']);
+                if (isWide(ch)) {
+                  line.splice(this.x, 0, [this.curAttr, ' ']);
+                }
+                line.splice(this.cols, line.length-this.cols);
+              }
+
+              line[this.x] = [this.curAttr, ch];
               this.x++;
               this.updateRange(this.y);
 
               if (isWide(ch)) {
                 j = this.y + this.ybase;
                 if (this.cols < 2 || this.x >= this.cols) {
-                  this.lines[j][this.x - 1] = [this.curAttr, ' '];
+                  this._getLine(j)[this.x - 1] = [this.curAttr, ' '];
                   break;
                 }
-                this.lines[j][this.x] = [this.curAttr, ' '];
+                this._getLine(j)[this.x] = [this.curAttr, ' '];
                 this.x++;
               }
             }
