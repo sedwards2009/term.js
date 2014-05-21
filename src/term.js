@@ -132,6 +132,8 @@ var normal = 0
   , application_start = 7
   , application = 8;
 
+var TERMINAL_ACTIVE_CLASS = "terminal-active";
+
 /**
  * Terminal
  */
@@ -510,7 +512,7 @@ Terminal.prototype._initLastLinePadding = function() {
 
   // textContent doesn't work well with IE for <style> elements.
   style.innerHTML = ''
-    + 'DIV.terminal-active:last-child {\n'
+    + 'DIV.' + TERMINAL_ACTIVE_CLASS + ':last-child {\n'
     + '}\n';
 
   head.insertBefore(style, head.firstChild);
@@ -768,7 +770,7 @@ Terminal.prototype._getChildDiv = function(y) {
   
   while (y >= this.children.length) {
       div = this.document.createElement('div');
-      div.className = "terminal-active";
+      div.className = TERMINAL_ACTIVE_CLASS;
       this.element.appendChild(div);
       this.children.push(div);
   }
@@ -1132,46 +1134,57 @@ Terminal.prototype.bindMouse = function() {
 
   // mouse coordinates measured in cols/rows
   function getCoords(ev) {
-    var x, y, w, h, el;
-
+    var x, col, row, w, el, target, rowElement;
+    
     // ignore browsers without pageX for now
-    if (ev.pageX == null) return;
+    if (ev.pageX === null) {
+      return null;
+    }
 
+    // Identify the row DIV that was clicked.
+    target = ev.target;
+    rowElement = null;
+    while (target !== self.element) {
+      if (target.className === TERMINAL_ACTIVE_CLASS) {
+        rowElement = target;
+        break;
+      }
+      target = target.parentNode;
+    }
+    if (rowElement === null) {
+      return null;
+    }
+    
+    row = self.children.indexOf(rowElement) + 1;
+    
     x = ev.pageX;
-    y = ev.pageY;
-    el = self.element;
-
-    // should probably check offsetParent
-    // but this is more portable
+    el = rowElement;
     while (el && el !== self.document.documentElement) {
       x -= el.offsetLeft;
-      y -= el.offsetTop;
       el = 'offsetParent' in el
         ? el.offsetParent
         : el.parentNode;
     }
 
-    // convert to cols/rows
-    w = self.element.clientWidth;
-    h = self.element.clientHeight;
-    x = Math.round((x / w) * self.cols);
-    y = Math.round((y / h) * self.rows);
+    // convert to cols
+    w = rowElement.clientWidth;
+    col = Math.floor((x / w) * self.cols) + 1;
 
     // be sure to avoid sending
     // bad positions to the program
-    if (x < 0) x = 0;
-    if (x > self.cols) x = self.cols;
-    if (y < 0) y = 0;
-    if (y > self.rows) y = self.rows;
+    if (col < 0) col = 0;
+    if (col > self.cols) col = self.cols;
+    if (row < 0) row = 0;
+    if (row > self.rows) row = self.rows;
 
     // xterm sends raw bytes and
     // starts at 32 (SP) for each.
-    x += 32;
-    y += 32;
+    col += 32;  // FIXME don't do xterm's 32 offset here.
+    row += 32;
 
     return {
-      x: x,
-      y: y,
+      x: col,
+      y: row,
       type: ev.type === wheelEvent
         ? 'mousewheel'
         : ev.type
