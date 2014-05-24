@@ -1515,6 +1515,7 @@ Terminal.prototype._refreshScrollback = function() {
   var pendingScrollbackLength;
   var onScreenDelete;
   var div;
+  var text;
 
   pendingScrollbackLength = this._scrollbackBuffer.length;
   if (pendingScrollbackLength !== 0) {
@@ -1538,12 +1539,22 @@ Terminal.prototype._refreshScrollback = function() {
     pendingScrollbackLength = this._scrollbackBuffer.length;
   
     frag = this.document.createDocumentFragment();
+    div = this.document.createElement('div');
+    frag.appendChild(div);
+    text = "";
     for (i = 0; i < pendingScrollbackLength; i++) {
-      div = this.document.createElement('div');
-      div.className = "terminal-scrollback";
-      div.innerHTML = this._lineToHTML(this._scrollbackBuffer[i]);
-      frag.appendChild(div);
+      text += "<div class=\"terminal-scrollback\">";
+      text += this._lineToHTML(this._scrollbackBuffer[i]);
+      text += "</div>";
     }
+    div.innerHTML = text;
+    
+    for (i = 0; i < pendingScrollbackLength; i++) {
+      frag.appendChild(div.childNodes[0]);
+    }
+    div.remove();
+    
+    frag.appendChild(div);
     
     if (this.children.length === 0) {
       this.element.appendChild(frag);
