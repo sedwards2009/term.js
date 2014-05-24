@@ -34,6 +34,8 @@
   
 var REFRESH_START_NULL = 100000000;
 var REFRESH_END_NULL = -100000000;
+var MAX_BATCH_TIME = 16;  // 16 ms = 60Hz
+var REFRESH_DELAY = 100;  // ms. How long to wait before doing a screen refresh during busy times.
 
 /**
  * Terminal Emulation References:
@@ -52,8 +54,7 @@ var REFRESH_END_NULL = -100000000;
  * Shared
  */
 
-var window = this
-  , document = this.document;
+var document = this.document;
 var idCounter = 1;
 
 /**
@@ -133,6 +134,7 @@ var normal = 0
   , application = 8;
 
 var TERMINAL_ACTIVE_CLASS = "terminal-active";
+var MAX_PROCESS_WRITE_SIZE = 4096;
 
 /**
  * Terminal
@@ -254,8 +256,8 @@ function Terminal(options) {
   // misc
   this.element;
   this.children;
-  this.refreshStart;
-  this.refreshEnd;
+  this.refreshStart = REFRESH_START_NULL;
+  this.refreshEnd = REFRESH_END_NULL;
   this.savedX;
   this.savedY;
   this.savedCols;
@@ -282,6 +284,12 @@ function Terminal(options) {
   }
   this.tabs;
   this.setupStops();
+  
+  this._writeBuffers = [];  // Buffer for incoming data waiting to be processed.
+  this._processWriteChunkTimer = -1;  // Timer ID for our write chunk timer.
+  
+  this._refreshTimer = -1;  // Timer ID for triggering an on scren refresh.
+  this._scrollbackBuffer = [];  // Array of lines which have not been rendered to the browser.
 }
 
 inherits(Terminal, EventEmitter);
@@ -1263,6 +1271,16 @@ Terminal.prototype.bindMouse = function() {
 Terminal.prototype.destroy = function() {
   var style;  
   var doc = this.document;
+  
+  if (this._processWriteChunkTimer !== -1) {
+    window.clearTimeout(this._processWriteChunkTimer);
+    this._processWriteChunkTimer = -1;
+  }
+  
+  if (this._refreshTimer !== -1) {
+    window.clearTimeout(this._refreshTimer);
+  }
+  
   if (this.physicalScroll) {
     style = doc.getElementById('term-padding-style' + this._termId);
     style.remove();
@@ -1282,6 +1300,47 @@ Terminal.prototype.destroy = function() {
  * Rendering Engine
  */
 
+/**
+ * Schedule a screen refresh and update.
+ * 
+ * @param {boolean} immediate True if the refresh should occur as soon as possible. False if a slight delay is permitted.
+ */
+Terminal.prototype._scheduleRefresh = function(immediate) {
+  var self = this;
+  var window = this.document.defaultView;
+  if (this._refreshTimer === -1) {
+    self._refreshTimer = window.setTimeout(function() {
+      self._refreshTimer = -1;
+      self._refreshFrame();
+    }, immediate ? 0 : REFRESH_DELAY);
+  }
+};
+
+/**
+ * Refresh and update the screen.
+ * 
+ * Usually call via a timer.
+ */
+Terminal.prototype._refreshFrame = function() {
+  var scrollatbottom;
+//console.log("_refreshFrame");
+  // Is the terminal scrolled down to the bottom now?
+  scrollatbottom = false;
+  if (this.physicalScroll) {
+    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
+  }
+  
+  this.refresh(this.refreshStart, this.refreshEnd);
+  this._refreshScrollback();
+
+  if (scrollatbottom) {
+    // Scroll the terminal down to the bottom.
+    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
+  }
+  this.refreshStart = REFRESH_START_NULL;
+  this.refreshEnd = REFRESH_END_NULL;
+};
+
 // In the screen buffer, each character
 // is stored as a an array with a character
 // and a 32-bit integer.
@@ -1293,21 +1352,10 @@ Terminal.prototype.destroy = function() {
 //   1=bold, 2=underline, 4=blink, 8=inverse, 16=invisible
 
 Terminal.prototype.refresh = function(start, end) {
-  var x
-    , y
-    , i
-    , line
-    , out
-    , ch
-    , width
-    , data
-    , attr
-    , bg
-    , fg
-    , flags
-    , row;
-
-  width = this.cols;
+  var x;
+  var y;
+  var line;
+  var row;
 
   if ( !this.physicalScroll && end >= this.lines.length) {
     this.log('`end` is too large. Most likely a bad CSR.');
@@ -1316,131 +1364,194 @@ Terminal.prototype.refresh = function(start, end) {
 
   for (y = start; y <= end; y++) {
     row = y + this.ydisp;
-
     line = this._getLine(row);
-    out = '';
 
+    // Place the cursor in the row.
     if (y === this.y
         && this.cursorState
         && (this.ydisp === this.ybase || this.selectMode)
         && !this.cursorHidden) {
       x = this.x;
+      line = line.slice();
+      line[x] = [-1, line[x][1]];
     } else {
       x = -1;
     }
 
-    attr = this.defAttr;
-    i = 0;
+    this._getChildDiv(y).innerHTML = this._lineToHTML(line);
+  }
+};
 
-    for (; i < width; i++) {
-      data = line[i][0];
-      ch = line[i][1];
+/**
+ * Render a line to a HTML string.
+ * 
+ * @param {Array} line Array describing a line of characters and attributes.
+ * @returns {string} A HTML rendering of the line as a HTML string.
+ */
+Terminal.prototype._lineToHTML = function(line) {
+  var attr;
+  var data;
+  var ch;
+  var i;
+  var width;
+  var out;
+  var bg;
+  var fg;
+  var flags;
+  
+  attr = this.defAttr;
+  width = this.cols;
+  out = '';
+  
+  for (i = 0; i < width; i++) {
+    data = line[i][0];
+    ch = line[i][1];
 
-      if (i === x) data = -1;
+    if (data !== attr) {
+      if (attr !== this.defAttr) {
+        out += '</span>';
+      }
+      if (data !== this.defAttr) {
+        if (data === -1) {
+          out += '<span class="reverse-video terminal-cursor">';
+        } else {
+          out += '<span style="';
 
-      if (data !== attr) {
-        if (attr !== this.defAttr) {
-          out += '</span>';
-        }
-        if (data !== this.defAttr) {
-          if (data === -1) {
-            out += '<span class="reverse-video terminal-cursor">';
-          } else {
-            out += '<span style="';
+          bg = data & 0x1ff;
+          fg = (data >> 9) & 0x1ff;
+          flags = data >> 18;
 
-            bg = data & 0x1ff;
-            fg = (data >> 9) & 0x1ff;
-            flags = data >> 18;
-
-            // bold
-            if (flags & 1) {
-              if (!Terminal.brokenBold) {
-                out += 'font-weight:bold;';
-              }
-              // See: XTerm*boldColors
-              if (fg < 8) fg += 8;
+          // bold
+          if (flags & 1) {
+            if (!Terminal.brokenBold) {
+              out += 'font-weight:bold;';
             }
+            // See: XTerm*boldColors
+            if (fg < 8) fg += 8;
+          }
 
-            // underline
+          // underline
+          if (flags & 2) {
+            out += 'text-decoration:underline;';
+          }
+
+          // blink
+          if (flags & 4) {
             if (flags & 2) {
-              out += 'text-decoration:underline;';
+              out = out.slice(0, -1);
+              out += ' blink;';
+            } else {
+              out += 'text-decoration:blink;';
             }
-
-            // blink
-            if (flags & 4) {
-              if (flags & 2) {
-                out = out.slice(0, -1);
-                out += ' blink;';
-              } else {
-                out += 'text-decoration:blink;';
-              }
-            }
-
-            // inverse
-            if (flags & 8) {
-              bg = (data >> 9) & 0x1ff;
-              fg = data & 0x1ff;
-              // Should inverse just be before the
-              // above boldColors effect instead?
-              if ((flags & 1) && fg < 8) fg += 8;
-            }
-
-            // invisible
-            if (flags & 16) {
-              out += 'visibility:hidden;';
-            }
-
-            // out += '" class="'
-            //   + 'term-bg-color-' + bg
-            //   + ' '
-            //   + 'term-fg-color-' + fg
-            //   + '">';
-
-            if (bg !== 256) {
-              out += 'background-color:'
-                + this.colors[bg]
-                + ';';
-            }
-
-            if (fg !== 257) {
-              out += 'color:'
-                + this.colors[fg]
-                + ';';
-            }
-
-            out += '">';
           }
+
+          // inverse
+          if (flags & 8) {
+            bg = (data >> 9) & 0x1ff;
+            fg = data & 0x1ff;
+            // Should inverse just be before the
+            // above boldColors effect instead?
+            if ((flags & 1) && fg < 8) fg += 8;
+          }
+
+          // invisible
+          if (flags & 16) {
+            out += 'visibility:hidden;';
+          }
+
+          if (bg !== 256) {
+            out += 'background-color:'
+              + this.colors[bg]
+              + ';';
+          }
+
+          if (fg !== 257) {
+            out += 'color:'
+              + this.colors[fg]
+              + ';';
+          }
+
+          out += '">';
         }
       }
-
-      switch (ch) {
-        case '&':
-          out += '&amp;';
-          break;
-        case '<':
-          out += '&lt;';
-          break;
-        case '>':
-          out += '&gt;';
-          break;
-        default:
-          if (ch <= ' ') {
-            out += '&nbsp;';
-          } else {
-            if (isWide(ch)) i++;
-            out += ch;
-          }
-          break;
-      }
-
-      attr = data;
     }
 
-    if (attr !== this.defAttr) {
-      out += '</span>';
+    switch (ch) {
+      case '&':
+        out += '&amp;';
+        break;
+      case '<':
+        out += '&lt;';
+        break;
+      case '>':
+        out += '&gt;';
+        break;
+      default:
+        if (ch <= ' ') {
+          out += '&nbsp;';
+        } else {
+          if (isWide(ch)) i++;
+          out += ch;
+        }
+        break;
+    }
+
+    attr = data;
+  }
+
+  if (attr !== this.defAttr) {
+    out += '</span>';
+  }
+  return out;
+};
+
+/**
+ * Render any pending scrollback lines.
+ */
+Terminal.prototype._refreshScrollback = function() {
+  var frag;
+  var i;
+  var onScreenScrollback;
+  var pendingScrollbackLength;
+  var onScreenDelete;
+  var div;
+
+  pendingScrollbackLength = this._scrollbackBuffer.length;
+  if (pendingScrollbackLength !== 0) {
+
+    onScreenScrollback = this.element.childNodes.length - this.children.length;
+    
+    if (pendingScrollbackLength > this.scrollback) {
+      onScreenDelete = onScreenScrollback;  // Delete every scrollback row on screen.
+      this._scrollbackBuffer.splice(0, pendingScrollbackLength - this.scrollback); // Truncate the TODO rows.
+    } else {
+      // Delete part of the on screen scrollback rows.
+      onScreenDelete = Math.max(0, pendingScrollbackLength + onScreenScrollback - this.scrollback);
     }
     
-    this._getChildDiv(y).innerHTML = out;
+    // Delete parts of the existing on screen scrollback.
+    while (onScreenDelete !==0) {
+      this.element.childNodes[0].remove();
+      onScreenDelete--;
+    }
+    
+    pendingScrollbackLength = this._scrollbackBuffer.length;
+  
+    frag = this.document.createDocumentFragment();
+    for (i = 0; i < pendingScrollbackLength; i++) {
+      div = this.document.createElement('div');
+      div.className = "terminal-scrollback";
+      div.innerHTML = this._lineToHTML(this._scrollbackBuffer[i]);
+      frag.appendChild(div);
+    }
+    
+    if (this.children.length === 0) {
+      this.element.appendChild(frag);
+    } else {
+      this.element.insertBefore(frag, this.children[0]);
+    }
+    
+    this._scrollbackBuffer = [];
   }
 };
 
@@ -1494,6 +1605,7 @@ Terminal.prototype.refreshBlink = function() {
 Terminal.prototype.scroll = function() {
   var row;
   var lastline;
+  var oldline;
 
   if ( ! this.physicalScroll) {
     // Normal, virtual scrolling.
@@ -1506,15 +1618,9 @@ Terminal.prototype.scroll = function() {
     }
   } else {
     // Drop the oldest line out of the scrollback buffer.
+    oldline = this.lines[0];
     this.lines = this.lines.slice(-(this.ybase + this.rows) + 1);
-
-    this.children[0].className = "terminal-scrollback";
-    this.children.splice(0, 1);
-
-    // Trim the scrollback buffer, which is just DIVs.
-    if ((this.element.childNodes.length - this.children.length) > this.scrollback) {
-      this.element.removeChild(this.element.childNodes[0]);
-    }
+    this._scrollbackBuffer.push(oldline);
   }
 
   this.ydisp = this.ybase;
@@ -1554,30 +1660,89 @@ Terminal.prototype.scrollDisp = function(disp) {
 };
 
 Terminal.prototype.write = function(data) {
+  this._writeBuffers.push(data);
+  this._scheduleProcessWriteChunk();
+};
+
+/**
+ * Schedule the write chunk process to run the next time the event loop is entered.
+ */
+Terminal.prototype._scheduleProcessWriteChunk = function() {
+  var self = this;
+  var window = this.document.defaultView;
+  if (this._processWriteChunkTimer === -1) {
+    self._processWriteChunkTimer = window.setTimeout(function() {
+      self._processWriteChunkTimer = -1;
+      self._processWriteChunk();
+    }, 0);
+  }
+};
+
+/**
+ * Process the next chunk of data to written into a the line array.
+ */
+Terminal.prototype._processWriteChunk = function() {
+  var chunk;
+  var starttime;
+  var nowtime;
+  
+  if (this._writeBuffers.length === 0) {
+    return; // Nothing to do.
+  }
+  
+  starttime = window.performance.now();
+//console.log("++++++++ _processWriteChunk() start time: " + starttime);
+  
+  // Schedule a call back just in case. setTimeout(.., 0) still carries a ~4ms delay. 
+  this._scheduleProcessWriteChunk();
+
+  while (true) {
+
+    chunk = this._writeBuffers[0];
+    if (chunk.length <= MAX_PROCESS_WRITE_SIZE) {
+      this._writeBuffers.splice(0, 1);
+    } else {
+      this._writeBuffers[0] = chunk.slice(MAX_PROCESS_WRITE_SIZE);
+      chunk = chunk.slice(0, MAX_PROCESS_WRITE_SIZE);
+    }
+
+    this._processWriteData(chunk);
+
+    nowtime = window.performance.now();
+    if (this._writeBuffers.length === 0) {
+      window.clearTimeout(this._processWriteChunkTimer);
+      this._processWriteChunkTimer= -1;
+      
+      this._scheduleRefresh(true);
+      break;
+    }
+    
+    if ((nowtime - starttime) > MAX_BATCH_TIME) {
+      this._scheduleRefresh(false);
+      break;
+    }
+  }
+//  console.log("---------- _processWriteChunk() end time: " + window.performance.now());
+};
+
+Terminal.prototype._processWriteData = function(data) {
   var l = data.length
     , i = 0
     , j
     , cs
     , ch;
-  var scrollatbottom;
   var nextzero;
   var line;
 
-  this.refreshStart = REFRESH_START_NULL;
-  this.refreshEnd = REFRESH_END_NULL;
+//console.log("write() data.length: " + data.length);
+//var starttime = window.performance.now();
+//var endtime;
+//console.log("write() start time: " + starttime);
 
   if (this.ybase !== this.ydisp) {
     this.ydisp = this.ybase;
     this.maxRange();
   }
-
-  // Is the terminal scrolled down to the bottom now?
-  scrollatbottom = false;
-  if (this.physicalScroll) {
-    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
-  }
-
-  // this.log(JSON.stringify(data.replace(/\x1b/g, '^[')));
   
   this.oldy = this.y;
   
@@ -2618,22 +2783,13 @@ Terminal.prototype.write = function(data) {
       this.updateRange(this.y);
       this.oldy = this.y;
     }
-    
-    if (this.physicalScroll && this.refreshStart === 0) {
-      this.updateRange(this.y);
-      this.refresh(this.refreshStart, this.refreshEnd);
-      this.refreshStart = REFRESH_START_NULL;
-      this.refreshEnd = REFRESH_END_NULL;
-    }
   }
 
   this.updateRange(this.y);
-  this.refresh(this.refreshStart, this.refreshEnd);
-  
-  if (scrollatbottom) {
-    // Scroll the terminal down to the bottom.
-    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
-  }
+    
+  endtime = window.performance.now();
+//console.log("write() end time: " + endtime);
+//  console.log("duration: " + (endtime - starttime) + "ms");
 };
 
 Terminal.prototype.writeln = function(data) {
