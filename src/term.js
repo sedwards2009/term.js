@@ -2843,6 +2843,10 @@ Terminal.prototype.keyDown = function(ev) {
       if (ev.shiftKey) {
         break;
       }
+      if (ev.ctrlKey) {
+        key = "\x1b[1;5D";
+        break;
+      }
       if (this.applicationCursor) {
         key = '\x1bOD'; // SS3 as ^[O for 7-bit
         //key = '\x8fD'; // SS3 as 0x8f for 8-bit
@@ -2853,6 +2857,10 @@ Terminal.prototype.keyDown = function(ev) {
     // right-arrow
     case 39:
       if (ev.shiftKey) {
+        break;
+      }
+      if (ev.ctrlKey) {
+        key = "\x1b[1;5C";
         break;
       }
       if (this.applicationCursor) {
@@ -2868,8 +2876,12 @@ Terminal.prototype.keyDown = function(ev) {
         break;
       }
       if (ev.ctrlKey) {
-        this.scrollDisp(-1);
-        return cancel(ev);
+        if (ev.shiftKey) {
+          this.scrollDisp(-1);
+          return cancel(ev);
+        } else {
+          key = "\x1b[1;5A";
+        }
       } else {
         key = '\x1b[A';
       }
@@ -2881,8 +2893,12 @@ Terminal.prototype.keyDown = function(ev) {
         break;
       }
       if (ev.ctrlKey) {
-        this.scrollDisp(1);
-        return cancel(ev);
+        if (ev.shiftKey) {
+          this.scrollDisp(1);
+          return cancel(ev);
+        } else {
+          key = "\x1b[1;5B";
+        }
       } else {
         key = '\x1b[B';
       }
@@ -2990,6 +3006,7 @@ Terminal.prototype.keyDown = function(ev) {
     case 123:
       key = '\x1b[24~';
       break;
+      
     default:
       // a-z and space
       if (ev.ctrlKey) {
@@ -3031,7 +3048,14 @@ Terminal.prototype.keyDown = function(ev) {
         } else if (ev.keyCode === 221) {
           // ^] - group sep
           key = String.fromCharCode(29);
+        } else if (ev.keyCode === 189) {
+          if (ev.shiftKey) {
+            // Ctrl+Shift+_ key
+            key = '\x1f';
+          }
         }
+        break;
+
       } else if ((!this.isMac && ev.altKey) || (this.isMac && ev.metaKey)) {
         if (ev.keyCode >= 65 && ev.keyCode <= 90) {
           key = '\x1b' + String.fromCharCode(ev.keyCode + 32);
