@@ -3010,50 +3010,56 @@ Terminal.prototype.keyDown = function(ev) {
     default:
       // a-z and space
       if (ev.ctrlKey) {
-        if (ev.keyCode >= 65 && ev.keyCode <= 90) {
-          // Ctrl-A
-          if (this.screenKeys) {
-            if (!this.prefixMode && !this.selectMode && ev.keyCode === 65) {
-              this.enterPrefix();
-              return cancel(ev);
-            }
-          }
-          // Ctrl-V
-          if (this.prefixMode && ev.keyCode === 86) {
-            this.leavePrefix();
-            return;
-          }
-          // Ctrl-C
-          if ((this.prefixMode || this.selectMode) && ev.keyCode === 67) {
-            if (this.visualMode) {
-              setTimeout(function() {
-                self.leaveVisual();
-              }, 1);
-            }
-            return;
-          }
-          key = String.fromCharCode(ev.keyCode - 64);
-        } else if (ev.keyCode === 32) {
-          // NUL
-          key = String.fromCharCode(0);
-        } else if (ev.keyCode >= 51 && ev.keyCode <= 55) {
-          // escape, file sep, group sep, record sep, unit sep
-          key = String.fromCharCode(ev.keyCode - 51 + 27);
-        } else if (ev.keyCode === 56) {
-          // delete
-          key = String.fromCharCode(127);
-        } else if (ev.keyCode === 219) {
-          // ^[ - escape
-          key = String.fromCharCode(27);
-        } else if (ev.keyCode === 221) {
-          // ^] - group sep
-          key = String.fromCharCode(29);
-        } else if (ev.keyCode === 189) {
-          if (ev.shiftKey) {
+        if (ev.shiftKey) {
+          // Ctrl+Shift
+          
+          if (ev.keyCode === 189) {
             // Ctrl+Shift+_ key
             key = '\x1f';
           }
-        }
+          
+        } else {
+          // Ctrl, no shift.
+          if (ev.keyCode >= 65 && ev.keyCode <= 90) {
+            // Ctrl-A
+            if (this.screenKeys) {
+              if (!this.prefixMode && !this.selectMode && ev.keyCode === 65) {
+                this.enterPrefix();
+                return cancel(ev);
+              }
+            }
+            // Ctrl-V
+            if (this.prefixMode && ev.keyCode === 86) {
+              this.leavePrefix();
+              return;
+            }
+            // Ctrl-C
+            if ((this.prefixMode || this.selectMode) && ev.keyCode === 67) {
+              if (this.visualMode) {
+                setTimeout(function() {
+                  self.leaveVisual();
+                }, 1);
+              }
+              return;
+            }
+            key = String.fromCharCode(ev.keyCode - 64);
+          } else if (ev.keyCode === 32) {
+            // NUL
+            key = String.fromCharCode(0);
+          } else if (ev.keyCode >= 51 && ev.keyCode <= 55) {
+            // escape, file sep, group sep, record sep, unit sep
+            key = String.fromCharCode(ev.keyCode - 51 + 27);
+          } else if (ev.keyCode === 56) {
+            // delete
+            key = String.fromCharCode(127);
+          } else if (ev.keyCode === 219) {
+            // ^[ - escape
+            key = String.fromCharCode(27);
+          } else if (ev.keyCode === 221) {
+            // ^] - group sep
+            key = String.fromCharCode(29);
+          }
+        }        
         break;
 
       } else if ((!this.isMac && ev.altKey) || (this.isMac && ev.metaKey)) {
@@ -3071,11 +3077,8 @@ Terminal.prototype.keyDown = function(ev) {
   }
 
   if (key === null) {
-    if (this.emit('unknown-keydown', ev)) {
-      return cancel(ev);
-    } else {
-      return true;
-    }
+    this.emit('unknown-keydown', ev);
+    return cancel(ev);
   }
 
   if (this.prefixMode) {
