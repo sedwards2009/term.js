@@ -136,13 +136,14 @@ var normal = 0
 var TERMINAL_ACTIVE_CLASS = "terminal-active";
 var MAX_PROCESS_WRITE_SIZE = 4096;
 
+/*************************************************************************/
+
 /**
  * Terminal
  */
 
 function Terminal(options) {
   var self = this;
-  var i;
 
   if (!(this instanceof Terminal)) {
     return new Terminal(arguments[0], arguments[1], arguments[2]);
@@ -202,15 +203,35 @@ function Terminal(options) {
     this.on('data', options.handler);
   }
 
+  this.state = 0; // Escape code parsing state.
+  this.refreshStart = REFRESH_START_NULL;
+  this.refreshEnd = REFRESH_END_NULL;
+
+  this._resetVariables();
+
+  this._writeBuffers = [];  // Buffer for incoming data waiting to be processed.
+  this._processWriteChunkTimer = -1;  // Timer ID for our write chunk timer.
+  
+  this._refreshTimer = -1;  // Timer ID for triggering an on scren refresh.
+  this._scrollbackBuffer = [];  // Array of lines which have not been rendered to the browser.
+}
+inherits(Terminal, EventEmitter);
+
+Terminal.prototype._resetVariables = function() {
+  var i;
+  
   this.ybase = 0;
   this.ydisp = 0;
   this.x = 0;
   this.y = 0;
   this.oldy = 0;
-  this.cursorState = 0;
+
+  this.cursorState = 0;       // Cursor blink state.
+  
   this.cursorHidden = false;
+  
   this.convertEol;
-  this.state = 0;
+  
   this.queue = '';
   this.scrollTop = 0;
   this.scrollBottom = this.rows - 1;
@@ -256,8 +277,6 @@ function Terminal(options) {
   // misc
   this.element;
   this.children;
-  this.refreshStart = REFRESH_START_NULL;
-  this.refreshEnd = REFRESH_END_NULL;
   this.savedX;
   this.savedY;
   this.savedCols;
@@ -266,8 +285,8 @@ function Terminal(options) {
   this.readable = true;
   this.writable = true;
 
-  this.defAttr = (0 << 18) | (257 << 9) | (256 << 0);
-  this.curAttr = this.defAttr;
+  this.defAttr = (0 << 18) | (257 << 9) | (256 << 0); // Default character style
+  this.curAttr = this.defAttr;  // Current character style.
 
   this.params = [];
   this.currentParam = 0;
@@ -284,15 +303,7 @@ function Terminal(options) {
   }
   this.tabs;
   this.setupStops();
-  
-  this._writeBuffers = [];  // Buffer for incoming data waiting to be processed.
-  this._processWriteChunkTimer = -1;  // Timer ID for our write chunk timer.
-  
-  this._refreshTimer = -1;  // Timer ID for triggering an on scren refresh.
-  this._scrollbackBuffer = [];  // Array of lines which have not been rendered to the browser.
-}
-
-inherits(Terminal, EventEmitter);
+};
 
 // back_color_erase feature for xterm.
 Terminal.prototype.eraseAttr = function() {
@@ -1284,7 +1295,7 @@ Terminal.prototype.destroy = function() {
   if (this.physicalScroll) {
     style = doc.getElementById('term-padding-style' + this._termId);
     style.remove();
-  }  
+  }
   this.readable = false;
   this.writable = false;
   this._events = {};
@@ -1329,7 +1340,7 @@ Terminal.prototype._refreshFrame = function() {
   if (this.physicalScroll) {
     scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
   }
-  
+
   this.refresh(this.refreshStart, this.refreshEnd);
   this._refreshScrollback();
 
@@ -2803,7 +2814,7 @@ Terminal.prototype._processWriteData = function(data) {
 
   this.updateRange(this.y);
     
-  endtime = window.performance.now();
+//  endtime = window.performance.now();
 //console.log("write() end time: " + endtime);
 //  console.log("duration: " + (endtime - starttime) + "ms");
 };
@@ -3458,9 +3469,7 @@ Terminal.prototype.reverseIndex = function() {
 
 // ESC c Full Reset (RIS).
 Terminal.prototype.reset = function() {
-  this.options.rows = this.rows;
-  this.options.cols = this.cols;
-  Terminal.call(this, this.options);
+  this._resetVariables();
   this.refresh(0, this.rows - 1);
 };
 
