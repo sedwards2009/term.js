@@ -4313,6 +4313,8 @@ Terminal.prototype.setMode = function(params) {
       case 1047: // alt screen buffer
         if (!this.normal) {
           var normal = {
+            cols: this.cols,
+            rows: this.rows,
             lines: this.lines,
             ybase: this.ybase,
             ydisp: this.ydisp,
@@ -4416,9 +4418,12 @@ Terminal.prototype.setMode = function(params) {
 //     Ps = 1 0 6 1  -> Reset keyboard emulation to Sun/PC style.
 //     Ps = 2 0 0 4  -> Reset bracketed paste mode.
 Terminal.prototype.resetMode = function(params) {
+  var currentcols;
+  var currentrows;
+  
   if (typeof params === 'object') {
-    var l = params.length
-      , i = 0;
+    var l = params.length;
+    var i = 0;
 
     for (; i < l; i++) {
       this.resetMode(params[i]);
@@ -4490,7 +4495,12 @@ Terminal.prototype.resetMode = function(params) {
       case 47: // normal screen buffer
       case 1047: // normal screen buffer - clearing it first
         if (this.normal) {
+          currentcols = this.cols;
+          currentrows = this.rows;
+          
           this.lines = this.normal.lines;
+          this.cols = this.normal.cols;
+          this.rows = this.normal.rows;
           this.ybase = this.normal.ybase;
           this.ydisp = this.normal.ydisp;
           this.x = this.normal.x;
@@ -4503,6 +4513,7 @@ Terminal.prototype.resetMode = function(params) {
           //   this.x = this.savedX;
           //   this.y = this.savedY;
           // }
+          this.resize(currentcols, currentrows);
           this.refresh(0, this.rows - 1);
           this.showCursor();
         }
