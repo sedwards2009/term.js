@@ -748,15 +748,19 @@ Terminal.insertStyle = function(document, bg, fg) {
  * will appear below the old last row in the window.
  */
 Terminal.prototype.moveRowsToScrollback = function() {
-  // Undraw the cursor.
-  this.cursorState = 0;
-  this.refresh(this.y, this.y);
+  this.lines.forEach(function(line) {
+    this._scrollbackBuffer.push(line);
+  }, this);
   
   this.lines = [];
-  this.children.forEach(function(kid) {
-    kid.className = "terminal-scrollback";
+  
+  this.children.forEach(function(div) {
+    div.remove();
   });
   this.children = [];
+  
+  this._refreshScrollback();
+  
   this.refreshStart = REFRESH_START_NULL;
   this.refreshEnd = REFRESH_END_NULL;
   this.x = 0;
@@ -773,8 +777,15 @@ Terminal.prototype.moveRowsToScrollback = function() {
  * @param {Element} element The DOM element to append.
  */
 Terminal.prototype.appendElement = function(element) {
+  var scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
+  
   this.moveRowsToScrollback();
   this.element.appendChild(element);
+  
+  if (scrollatbottom) {
+    // Scroll the terminal down to the bottom.
+    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
+  }
 };
 
 Terminal.prototype._getLine = function(row) {
@@ -1698,9 +1709,9 @@ Terminal.prototype._scheduleProcessWriteChunk = function() {
   var self = this;
   var window = this.document.defaultView;
   if (this._processWriteChunkTimer === -1) {
-    self._processWriteChunkTimer = window.setTimeout(function() {
+    this._processWriteChunkTimer = window.setTimeout(function() {
       self._processWriteChunkTimer = -1;
-      self._processWriteChunk();
+      self._processWriteChunkRealTime();
     }, 0);
   }
 };
@@ -1708,14 +1719,9 @@ Terminal.prototype._scheduleProcessWriteChunk = function() {
 /**
  * Process the next chunk of data to written into a the line array.
  */
-Terminal.prototype._processWriteChunk = function() {
-  var chunk;
+Terminal.prototype._processWriteChunkRealTime = function() {
   var starttime;
   var nowtime;
-  
-  if (this._writeBuffers.length === 0) {
-    return; // Nothing to do.
-  }
   
   starttime = window.performance.now();
 //console.log("++++++++ _processWriteChunk() start time: " + starttime);
@@ -1724,32 +1730,51 @@ Terminal.prototype._processWriteChunk = function() {
   this._scheduleProcessWriteChunk();
 
   while (true) {
-
-    chunk = this._writeBuffers[0];
-    if (chunk.length <= MAX_PROCESS_WRITE_SIZE) {
-      this._writeBuffers.splice(0, 1);
-    } else {
-      this._writeBuffers[0] = chunk.slice(MAX_PROCESS_WRITE_SIZE);
-      chunk = chunk.slice(0, MAX_PROCESS_WRITE_SIZE);
-    }
-
-    this._processWriteData(chunk);
-
-    nowtime = window.performance.now();
-    if (this._writeBuffers.length === 0) {
+    if (this._processOneWriteChunk() === false) {
       window.clearTimeout(this._processWriteChunkTimer);
-      this._processWriteChunkTimer= -1;
+      this._processWriteChunkTimer = -1;
       
       this._scheduleRefresh(true);
       break;
     }
     
+    nowtime = window.performance.now();
     if ((nowtime - starttime) > MAX_BATCH_TIME) {
       this._scheduleRefresh(false);
       break;
     }
   }
 //  console.log("---------- _processWriteChunk() end time: " + window.performance.now());
+};
+
+/**
+ * Process one chunk of written data.
+ * 
+ * @returns {boolean} True if there are extra chunks available which need processing.
+ */
+Terminal.prototype._processOneWriteChunk = function() {
+  var chunk;
+  
+  if (this._writeBuffers.length === 0) {
+    return false; // Nothing to do.
+  }
+  
+  chunk = this._writeBuffers[0];
+  if (chunk.length <= MAX_PROCESS_WRITE_SIZE) {
+    this._writeBuffers.splice(0, 1);
+  } else {
+    this._writeBuffers[0] = chunk.slice(MAX_PROCESS_WRITE_SIZE);
+    chunk = chunk.slice(0, MAX_PROCESS_WRITE_SIZE);
+  }
+
+  this._processWriteData(chunk);
+  return this._writeBuffers.length !== 0;
+};
+
+Terminal.prototype._flushWriteBuffer = function() {
+  while(this._processOneWriteChunk()) {
+    // Keep on going until it is all done.
+  }
 };
 
 Terminal.prototype._processWriteData = function(data) {
