@@ -3325,15 +3325,28 @@ Terminal.prototype.resizeToContainer = function() {
   var range;
   var scrollatbottom;
   var lineEl = this.children[0];
+  var computedStyle;
+  var width;
 
   range = this.document.createRange();
   range.setStart(lineEl, 0);
   range.setEnd(lineEl, lineEl.childNodes.length);
   
   rect = range.getBoundingClientRect();
+  
   charWidth = rect.width / this.cols;
   charHeight = rect.height;
-  newCols = Math.floor(this.element.clientWidth / charWidth);
+  
+  function px(value) {
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+    return parseInt(value.slice(0,-2),10);
+  }  
+  computedStyle = window.getComputedStyle(lineEl);
+  width = this.element.clientWidth - px(computedStyle.marginLeft) - px(computedStyle.marginRight);
+  
+  newCols = Math.floor(width / charWidth);
   newRows = Math.floor(this.element.clientHeight / charHeight);
 
   this.resize(newCols, newRows);
