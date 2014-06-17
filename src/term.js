@@ -1692,6 +1692,10 @@ Terminal.prototype.scrollToBottom = function() {
   this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
 };
 
+Terminal.prototype.isScrollAtBottom = function() {
+  return this.element.scrollTop === this.element.scrollHeight - this.element.clientHeight;
+};
+
 Terminal.prototype.scrollDisp = function(disp) {
   this.ydisp += disp;
 
