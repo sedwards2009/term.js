@@ -748,6 +748,13 @@ Terminal.insertStyle = function(document, bg, fg) {
  * will appear below the old last row in the window.
  */
 Terminal.prototype.moveRowsToScrollback = function() {
+  
+  if (this.x === 0 && this.lines.length-1 === this.y) {
+    if (this.getLineText(this.y).trim() === '') {
+      this.lines.splice(this.lines.length-1, 1);
+    }
+  }
+  
   this.lines.forEach(function(line) {
     this._scrollbackBuffer.push(line);
   }, this);
