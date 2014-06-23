@@ -1399,7 +1399,8 @@ Terminal.prototype.refresh = function(start, end) {
     if (y === this.y
         && this.cursorState
         && (this.ydisp === this.ybase || this.selectMode)
-        && !this.cursorHidden) {
+        && !this.cursorHidden
+        && this.x < this.cols) {
       x = this.x;
       line = line.slice();
       line[x] = [-1, line[x][1]];
