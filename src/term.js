@@ -1367,7 +1367,7 @@ Terminal.prototype.refresh = function(start, end) {
     this._getChildDiv(y).innerHTML = this._lineToHTML(line);
   }
 };
-
+  
 /**
  * Render a line to a HTML string.
  * 
@@ -1386,7 +1386,7 @@ Terminal.prototype._lineToHTML = function(line) {
   var flags;
   
   attr = this.defAttr;
-  width = this.cols;
+  width = line.length;
   out = '';
   
   for (i = 0; i < width; i++) {
