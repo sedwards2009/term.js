@@ -74,8 +74,8 @@ EventEmitter.prototype.on = EventEmitter.prototype.addListener;
 EventEmitter.prototype.removeListener = function(type, listener) {
   if (!this._events[type]) return;
 
-  var obj = this._events[type]
-    , i = obj.length;
+  var obj = this._events[type];
+  var i = obj.length;
 
   while (i--) {
     if (obj[i] === listener || obj[i].listener === listener) {
@@ -104,10 +104,10 @@ EventEmitter.prototype.once = function(type, listener) {
 EventEmitter.prototype.emit = function(type) {
   if (!this._events[type]) return;
 
-  var args = Array.prototype.slice.call(arguments, 1)
-    , obj = this._events[type]
-    , l = obj.length
-    , i = 0;
+  var args = Array.prototype.slice.call(arguments, 1);
+  var obj = this._events[type];
+  var l = obj.length;
+  var i = 0;
 
   for (; i < l; i++) {
     obj[i].apply(this, args);
@@ -115,22 +115,22 @@ EventEmitter.prototype.emit = function(type) {
 };
 
 EventEmitter.prototype.listeners = function(type) {
-  return this._events[type] = this._events[type] || [];
+  return this._events[type] !== undefined ? this._events[type] : [];
 };
 
 /**
  * States
  */
 
-var normal = 0
-  , escaped = 1
-  , csi = 2
-  , osc = 3
-  , charset = 4
-  , dcs = 5
-  , ignore = 6
-  , application_start = 7
-  , application = 8;
+var normal = 0;
+var escaped = 1;
+var csi = 2;
+var osc = 3;
+var charset = 4;
+var dcs = 5;
+var ignore = 6;
+var application_start = 7;
+var application = 8;
 
 var TERMINAL_ACTIVE_CLASS = "terminal-active";
 var MAX_PROCESS_WRITE_SIZE = 4096;
@@ -165,7 +165,7 @@ function Terminal(options) {
   options = options || {};
 
   each(keys(Terminal.defaults), function(key) {
-    if (options[key] == null) {
+    if (options[key] === undefined) {
       options[key] = Terminal.options[key];
       // Legacy:
       if (Terminal[key] !== Terminal.defaults[key]) {
@@ -229,7 +229,7 @@ Terminal.prototype._resetVariables = function() {
   this.cursorHidden = false;
   this.hasFocus = false;
   
-  this.convertEol;
+//  this.convertEol;
   
   this.queue = '';
   this.scrollTop = 0;
@@ -248,12 +248,12 @@ Terminal.prototype._resetVariables = function() {
   this.selectMode = false;
   this.visualMode = false;
   this.searchMode = false;
-  this.searchDown;
+//  this.searchDown;
   this.entry = '';
   this.entryPrefix = 'Search: ';
-  this._real;
-  this._selected;
-  this._textarea;
+//  this._real;
+//  this._selected;
+//  this._textarea;
 
   // charset
   this.charset = null;
@@ -262,23 +262,23 @@ Terminal.prototype._resetVariables = function() {
   this.charsets = [null];
 
   // mouse properties
-  this.decLocator;
-  this.x10Mouse;
-  this.vt200Mouse;
-  this.vt300Mouse;
-  this.normalMouse;
-  this.mouseEvents;
-  this.sendFocus;
-  this.utfMouse;
-  this.sgrMouse;
-  this.urxvtMouse;
+//  this.decLocator;
+//  this.x10Mouse;
+//  this.vt200Mouse;
+//  this.vt300Mouse;
+//  this.normalMouse;
+//  this.mouseEvents;
+//  this.sendFocus;
+//  this.utfMouse;
+//  this.sgrMouse;
+//  this.urxvtMouse;
 
   // misc
-  this.element;
-  this.children;
-  this.savedX;
-  this.savedY;
-  this.savedCols;
+//  this.element;
+//  this.children;
+//  this.savedX;
+//  this.savedY;
+//  this.savedCols;
 
   // stream
   this.readable = true;
@@ -300,7 +300,7 @@ Terminal.prototype._resetVariables = function() {
       this.lines.push(this.blankLine());
     }
   }
-  this.tabs;
+//  this.tabs;
   this.setupStops();
 };
 
@@ -360,9 +360,9 @@ Terminal.xtermColors = [
 // Colors 0-15 + 16-255
 // Much thanks to TooTallNate for writing this.
 Terminal.colors = (function() {
-  var colors = Terminal.tangoColors.slice()
-    , r = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff]
-    , i;
+  var colors = Terminal.tangoColors.slice();
+  var r = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff];
+  var i;
 
   // 16-231
   i = 0;
@@ -396,10 +396,10 @@ Terminal.colors[257] = '#f0f0f0';
 Terminal._colors = Terminal.colors.slice();
 
 Terminal.vcolors = (function() {
-  var out = []
-    , colors = Terminal.colors
-    , i = 0
-    , color;
+  var out = [];
+  var colors = Terminal.colors;
+  var i = 0;
+  var color;
 
   for (; i < 256; i++) {
     color = parseInt(colors[i].substring(1), 16);
@@ -503,9 +503,8 @@ Terminal.prototype._initLastLinePadding = function() {
   style.id = 'term-padding-style' + this._termId;
 
   // textContent doesn't work well with IE for <style> elements.
-  style.innerHTML = ''
-    + 'DIV.' + TERMINAL_ACTIVE_CLASS + ':last-child {\n'
-    + '}\n';
+  style.innerHTML = 'DIV.' + TERMINAL_ACTIVE_CLASS + ':last-child {\n' +
+    '}\n';
 
   head.insertBefore(style, head.firstChild);
 };
@@ -558,12 +557,12 @@ Terminal.prototype.bindKeys = function() {
     if (!target) {
       return;
     }
-    if (target === self.element
-        || target === self.context
-        || target === self.document
-        || target === self.body
-        || target === self._textarea
-        || target === self.parent) {
+    if (target === self.element ||
+        target === self.context ||
+        target === self.document ||
+        target === self.body ||
+        target === self._textarea ||
+        target === self.parent) {
       return self.keyDown(ev);
     }
   }, true);
@@ -571,12 +570,12 @@ Terminal.prototype.bindKeys = function() {
   on(this.element, 'keypress', function(ev) {
     var target = ev.target || ev.srcElement;
     if (!target) return;
-    if (target === self.element
-        || target === self.context
-        || target === self.document
-        || target === self.body
-        || target === self._textarea
-        || target === self.parent) {
+    if (target === self.element ||
+        target === self.context ||
+        target === self.document ||
+        target === self.body ||
+        target === self._textarea ||
+        target === self.parent) {
       return self.keyPress(ev);
     }
   }, true);
@@ -662,24 +661,24 @@ Terminal.insertStyle = function(document, bg, fg) {
   var head = document.getElementsByTagName('head')[0];
   if (!head) return;
 
-  var style = document.createElement('style');
+  style = document.createElement('style');
   style.id = 'term-style';
 
   // textContent doesn't work well with IE for <style> elements.
-  style.innerHTML = ''
-    + '.terminal {\n'
-    + '  float: left;\n'
-    + '  border: ' + bg + ' solid 5px;\n'
-    + '  font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;\n'
-    + '  font-size: 11px;\n'
-    + '  color: ' + fg + ';\n'
-    + '  background: ' + bg + ';\n'
-    + '}\n'
-    + '\n'
-    + '.terminal-cursor {\n'
-    + '  color: ' + bg + ';\n'
-    + '  background: ' + fg + ';\n'
-    + '}\n';
+  style.innerHTML = '' +
+    '.terminal {\n' +
+    '  float: left;\n' +
+    '  border: ' + bg + ' solid 5px;\n' +
+    '  font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;\n' +
+    '  font-size: 11px;\n' +
+    '  color: ' + fg + ';\n' +
+    '  background: ' + bg + ';\n' +
+    '}\n' +
+    '\n' +
+    '.terminal-cursor {\n' +
+    '  color: ' + bg + ';\n' +
+    '  background: ' + fg + ';\n' +
+    '}\n';
 
   // var out = '';
   // each(Terminal.colors, function(color, i) {
@@ -857,11 +856,7 @@ Terminal.prototype.open = function(parent) {
   // ... but it does. Firefox's paste
   // event seems to only work for textareas?
   on(this.element, 'mousedown', function(ev) {
-    var button = ev.button != null
-      ? +ev.button
-      : ev.which != null
-        ? ev.which - 1
-        : null;
+    var button = ev.button !== undefined ? ev.button : (ev.which !== undefined ? ev.which - 1 : null);
 
     // Does IE9 do this?
     if (self.isMSIE) {
@@ -882,7 +877,7 @@ Terminal.prototype.open = function(parent) {
 
   // Figure out whether boldness affects
   // the character width of monospace fonts.
-  if (Terminal.brokenBold == null) {
+  if (Terminal.brokenBold === undefined) {
     Terminal.brokenBold = isBoldBroken(this.document);
   }
 
@@ -904,20 +899,18 @@ Terminal.prototype.open = function(parent) {
 // Relevant functions in xterm/button.c:
 //   BtnCode, EmitButtonCode, EditorButton, SendMousePosition
 Terminal.prototype.bindMouse = function() {
-  var el = this.element
-    , self = this
-    , pressed = 32;
+  var el = this.element;
+  var self = this;
+  var pressed = 32;
 
-  var wheelEvent = 'onmousewheel' in this.context
-    ? 'mousewheel'
-    : 'DOMMouseScroll';
+  var wheelEvent = 'onmousewheel' in this.context ? 'mousewheel' : 'DOMMouseScroll';
 
   // mouseup, mousedown, mousewheel
   // left click: ^[[M 3<^[[M#3<
   // mousewheel up: ^[[M`3>
   function sendButton(ev) {
-    var button
-      , pos;
+    var button;
+    var pos;
 
     // get the xterm-style button
     button = getButton(ev);
@@ -948,8 +941,8 @@ Terminal.prototype.bindMouse = function() {
   // motion example of a left click:
   // ^[[M 3<^[[M@4<^[[M@5<^[[M@6<^[[M@7<^[[M#7<
   function sendMove(ev) {
-    var button = pressed
-      , pos;
+    var button = pressed;
+    var pos;
 
     pos = getCoords(ev);
     if (!pos) return;
@@ -992,14 +985,15 @@ Terminal.prototype.bindMouse = function() {
     //   y: pos.x - 32,
     //   button: button
     // });
-
+    var data;
+    
     if (self.vt300Mouse) {
       // NOTE: Unstable.
       // http://www.vt100.net/docs/vt3xx-gp/chapter15.html
       button &= 3;
       pos.x -= 32;
       pos.y -= 32;
-      var data = '\x1b[24';
+      data = '\x1b[24';
       if (button === 0) data += '1';
       else if (button === 1) data += '3';
       else if (button === 2) data += '5';
@@ -1019,17 +1013,17 @@ Terminal.prototype.bindMouse = function() {
       else if (button === 1) button = 4;
       else if (button === 2) button = 6;
       else if (button === 3) button = 3;
-      self.send('\x1b['
-        + button
-        + ';'
-        + (button === 3 ? 4 : 0)
-        + ';'
-        + pos.y
-        + ';'
-        + pos.x
-        + ';'
-        + (pos.page || 0)
-        + '&w');
+      self.send('\x1b[' +
+                button +
+                ';' +
+                (button === 3 ? 4 : 0) +
+                ';' +
+                pos.y +
+                ';' +
+                pos.x +
+                ';' +
+                (pos.page || 0) +
+                '&w');
       return;
     }
 
@@ -1045,17 +1039,17 @@ Terminal.prototype.bindMouse = function() {
     if (self.sgrMouse) {
       pos.x -= 32;
       pos.y -= 32;
-      self.send('\x1b[<'
-        + ((button & 3) === 3 ? button & ~3 : button)
-        + ';'
-        + pos.x
-        + ';'
-        + pos.y
-        + ((button & 3) === 3 ? 'm' : 'M'));
+      self.send('\x1b[<' +
+                ((button & 3) === 3 ? button & ~3 : button) +
+                ';' +
+                pos.x +
+                ';' +
+                pos.y +
+                ((button & 3) === 3 ? 'm' : 'M'));
       return;
     }
 
-    var data = [];
+    data = [];
 
     encode(data, button);
     encode(data, pos.x);
@@ -1065,11 +1059,11 @@ Terminal.prototype.bindMouse = function() {
   }
 
   function getButton(ev) {
-    var button
-      , shift
-      , meta
-      , ctrl
-      , mod;
+    var button;
+    var shift;
+    var meta;
+    var ctrl;
+    var mod;
 
     // two low bits:
     // 0 = left
@@ -1080,11 +1074,7 @@ Terminal.prototype.bindMouse = function() {
     // 1, and 2 - with 64 added
     switch (ev.type) {
       case 'mousedown':
-        button = ev.button != null
-          ? +ev.button
-          : ev.which != null
-            ? ev.which - 1
-            : null;
+        button = ev.button !== undefined ? ev.button : (ev.which !== undefined ? ev.which - 1 : null);
 
         if (self.isMSIE) {
           button = button === 1 ? 0 : button === 4 ? 1 : button;
@@ -1094,14 +1084,10 @@ Terminal.prototype.bindMouse = function() {
         button = 3;
         break;
       case 'DOMMouseScroll':
-        button = ev.detail < 0
-          ? 64
-          : 65;
+        button = ev.detail < 0 ? 64 : 65;
         break;
       case 'mousewheel':
-        button = ev.wheelDeltaY > 0
-          ? 64
-          : 65;
+        button = ev.wheelDeltaY > 0 ? 64 : 65;
         break;
     }
 
@@ -1155,9 +1141,7 @@ Terminal.prototype.bindMouse = function() {
     el = rowElement;
     while (el && el !== self.document.documentElement) {
       x -= el.offsetLeft;
-      el = 'offsetParent' in el
-        ? el.offsetParent
-        : el.parentNode;
+      el = 'offsetParent' in el ? el.offsetParent : el.parentNode;
     }
 
     // convert to cols
@@ -1179,9 +1163,7 @@ Terminal.prototype.bindMouse = function() {
     return {
       x: col,
       y: row,
-      type: ev.type === wheelEvent
-        ? 'mousewheel'
-        : ev.type
+      type: ev.type === wheelEvent ? 'mousewheel' : ev.type
     };
   }
 
@@ -1223,9 +1205,7 @@ Terminal.prototype.bindMouse = function() {
 
   on(el, wheelEvent, function(ev) {
     if (!self.mouseEvents) return;
-    if (self.x10Mouse
-        || self.vt300Mouse
-        || self.decLocator) return;
+    if (self.x10Mouse || self.vt300Mouse || self.decLocator) return;
     sendButton(ev);
     return cancel(ev);
   });
@@ -1352,11 +1332,12 @@ Terminal.prototype.refresh = function(start, end) {
     line = this._getLine(row);
 
     // Place the cursor in the row.
-    if (y === this.y
-        && this.cursorState
-        && (this.ydisp === this.ybase || this.selectMode)
-        && !this.cursorHidden
-        && this.x < this.cols) {
+    if (y === this.y &&
+        this.cursorState &&
+        (this.ydisp === this.ybase || this.selectMode) &&
+        !this.cursorHidden &&
+        this.x < this.cols) {
+
       x = this.x;
       line = line.slice();
       line[x] = [-1, line[x][1]];
@@ -1446,15 +1427,11 @@ Terminal.prototype._lineToHTML = function(line) {
           }
 
           if (bg !== 256) {
-            out += 'background-color:'
-              + this.colors[bg]
-              + ';';
+            out += 'background-color:' + this.colors[bg] + ';';
           }
 
           if (fg !== 257) {
-            out += 'color:'
-              + this.colors[fg]
-              + ';';
+            out += 'color:' + this.colors[fg] + ';';
           }
 
           out += '">';
@@ -1748,11 +1725,11 @@ Terminal.prototype._flushWriteBuffer = function() {
 };
 
 Terminal.prototype._processWriteData = function(data) {
-  var l = data.length
-    , i = 0
-    , j
-    , cs
-    , ch;
+  var l = data.length;
+  var i = 0;
+  var j;
+  var cs;
+  var ch;
   var nextzero;
   var line;
 
@@ -1924,10 +1901,12 @@ Terminal.prototype._processWriteData = function(data) {
             break;
 
           // ESC E Next Line ( NEL is 0x85).
-          // ESC D Index ( IND is 0x84).
           case 'E':
             this.x = 0;
-            ;
+            this.index();
+            break;
+
+          // ESC D Index ( IND is 0x84).
           case 'D':
             this.index();
             break;
@@ -2671,8 +2650,8 @@ Terminal.prototype._processWriteData = function(data) {
             // Request Status String (DECRQSS).
             // test: echo -e '\eP$q"p\e\\'
             case '$q':
-              var pt = this.currentParam
-                , valid = false;
+              var pt = this.currentParam;
+              var valid = false;
 
               switch (pt) {
                 // DECSCA
@@ -2687,11 +2666,11 @@ Terminal.prototype._processWriteData = function(data) {
 
                 // DECSTBM
                 case 'r':
-                  pt = ''
-                    + (this.scrollTop + 1)
-                    + ';'
-                    + (this.scrollBottom + 1)
-                    + 'r';
+                  pt = '' +
+                    (this.scrollTop + 1) +
+                    ';' +
+                    (this.scrollBottom + 1) +
+                    'r';
                   break;
 
                 // SGR
@@ -2705,7 +2684,7 @@ Terminal.prototype._processWriteData = function(data) {
                   break;
               }
 
-              this.send('\x1bP' + +valid + '$r' + pt + '\x1b\\');
+              this.send('\x1bP' + (valid ? 1 : 0) + '$r' + pt + '\x1b\\');
               break;
 
             // Set Termcap/Terminfo Data (xterm, experimental).
@@ -2717,10 +2696,10 @@ Terminal.prototype._processWriteData = function(data) {
             // This can cause a small glitch in vim.
             // test: echo -ne '\eP+q6b64\e\\'
             case '+q':
-              var pt = this.currentParam
-                , valid = false;
+              pt = this.currentParam;
+              valid = false;
 
-              this.send('\x1bP' + +valid + '+r' + pt + '\x1b\\');
+              this.send('\x1bP' + (valid ? 1 : 0) + '+r' + pt + '\x1b\\');
               break;
 
             default:
@@ -3130,7 +3109,7 @@ Terminal.prototype.keyPress = function(ev) {
 
   if (ev.charCode) {
     key = ev.charCode;
-  } else if (ev.which == null) {
+  } else if (ev.which === undefined) {
     key = ev.keyCode;
   } else if (ev.which !== 0 && ev.charCode !== 0) {
     key = ev.which;
@@ -3349,7 +3328,7 @@ Terminal.prototype.maxRange = function() {
 };
 
 Terminal.prototype.setupStops = function(i) {
-  if (i != null) {
+  if (i !== undefined && i !== null) {
     if (!this.tabs[i]) {
       i = this.prevStop(i);
     }
@@ -3364,19 +3343,15 @@ Terminal.prototype.setupStops = function(i) {
 };
 
 Terminal.prototype.prevStop = function(x) {
-  if (x == null) x = this.x;
+  if (x === undefined) x = this.x;
   while (!this.tabs[--x] && x > 0);
-  return x >= this.cols
-    ? this.cols - 1
-    : x < 0 ? 0 : x;
+  return x >= this.cols ? this.cols - 1 : (x < 0 ? 0 : x);
 };
 
 Terminal.prototype.nextStop = function(x) {
-  if (x == null) x = this.x;
+  if (x === undefined) x = this.x;
   while (!this.tabs[++x] && x < this.cols);
-  return x >= this.cols
-    ? this.cols - 1
-    : x < 0 ? 0 : x;
+  return x >= this.cols ? this.cols - 1 : (x < 0 ? 0 : x);
 };
 
 Terminal.prototype.eraseRight = function(x, y) {
@@ -3408,13 +3383,11 @@ Terminal.prototype.eraseLine = function(y) {
 };
 
 Terminal.prototype.blankLine = function(cur) {
-  var attr = cur
-    ? this.eraseAttr()
-    : this.defAttr;
+  var attr = cur ? this.eraseAttr() : this.defAttr;
 
-  var ch = [attr, ' ']
-    , line = []
-    , i = 0;
+  var ch = [attr, ' '];
+  var line = [];
+  var i = 0;
 
   for (; i < this.cols; i++) {
     line[i] = ch;
@@ -3424,9 +3397,7 @@ Terminal.prototype.blankLine = function(cur) {
 };
 
 Terminal.prototype.ch = function(cur) {
-  return cur
-    ? [this.eraseAttr(), ' ']
-    : [this.defAttr, ' '];
+  return cur ? [this.eraseAttr(), ' '] : [this.defAttr, ' '];
 };
 
 Terminal.prototype.is = function(term) {
@@ -3592,7 +3563,7 @@ Terminal.prototype.eraseInDisplay = function(params) {
       while (j--) this.eraseLine(j);
       break;
     case 3:
-      ; // no saved lines
+      // no saved lines
       break;
   }
 };
@@ -3689,12 +3660,12 @@ Terminal.prototype.charAttributes = function(params) {
     return;
   }
 
-  var l = params.length
-    , i = 0
-    , flags = this.curAttr >> 18
-    , fg = (this.curAttr >> 9) & 0x1ff
-    , bg = this.curAttr & 0x1ff
-    , p;
+  var l = params.length;
+  var i = 0;
+  var flags = this.curAttr >> 18;
+  var fg = (this.curAttr >> 9) & 0x1ff;
+  var bg = this.curAttr & 0x1ff;
+  var p;
 
   for (; i < l; i++) {
     p = params[i];
@@ -3829,11 +3800,7 @@ Terminal.prototype.deviceStatus = function(params) {
         break;
       case 6:
         // cursor position
-        this.send('\x1b['
-          + (this.y + 1)
-          + ';'
-          + (this.x + 1)
-          + 'R');
+        this.send('\x1b[' + (this.y + 1) + ';' + (this.x + 1) + 'R');
         break;
     }
   } else if (this.prefix === '?') {
@@ -3842,11 +3809,7 @@ Terminal.prototype.deviceStatus = function(params) {
     switch (params[0]) {
       case 6:
         // cursor position
-        this.send('\x1b[?'
-          + (this.y + 1)
-          + ';'
-          + (this.x + 1)
-          + 'R');
+        this.send('\x1b[?' + (this.y + 1) + ';' + (this.x + 1) + 'R');
         break;
       case 15:
         // no printer
@@ -4072,9 +4035,7 @@ Terminal.prototype.sendDeviceAttributes = function(params) {
   if (params[0] > 0) return;
 
   if (!this.prefix) {
-    if (this.is('xterm')
-        || this.is('rxvt-unicode')
-        || this.is('screen')) {
+    if (this.is('xterm') || this.is('rxvt-unicode') || this.is('screen')) {
       this.send('\x1b[?1;2c');
     } else if (this.is('linux')) {
       this.send('\x1b[?6c');
@@ -4223,8 +4184,8 @@ Terminal.prototype.HVPosition = function(params) {
 //   http://vt100.net/docs/vt220-rm/chapter4.html
 Terminal.prototype.setMode = function(params) {
   if (typeof params === 'object') {
-    var l = params.length
-      , i = 0;
+    var l = params.length;
+    var i = 0;
 
     for (; i < l; i++) {
       this.setMode(params[i]);
@@ -4316,7 +4277,7 @@ Terminal.prototype.setMode = function(params) {
         break;
       case 1049: // alt screen buffer cursor
         //this.saveCursor();
-        ; // FALL-THROUGH
+        // FALL-THROUGH
       case 47: // alt screen buffer
       case 1047: // alt screen buffer
         if (!this.normal) {
@@ -4499,7 +4460,7 @@ Terminal.prototype.resetMode = function(params) {
         this.cursorHidden = true;
         break;
       case 1049: // alt screen buffer cursor
-        ; // FALL-THROUGH
+        // FALL-THROUGH
       case 47: // normal screen buffer
       case 1047: // normal screen buffer - clearing it first
         if (this.normal) {
@@ -4613,7 +4574,6 @@ Terminal.prototype.initMouseTracking = function(params) {
 //     Ps = 3  -> Do not query window/icon labels using UTF-8.
 //   (See discussion of "Title Modes").
 Terminal.prototype.resetTitleModes = function(params) {
-  ;
 };
 
 // CSI Ps Z  Cursor Backward Tabulation Ps tab stops (default = 1) (CBT).
@@ -4626,9 +4586,9 @@ Terminal.prototype.cursorBackwardTab = function(params) {
 
 // CSI Ps b  Repeat the preceding graphic character Ps times (REP).
 Terminal.prototype.repeatPrecedingCharacter = function(params) {
-  var param = params[0] || 1
-    , line = this._getLine(this.ybase + this.y)
-    , ch = line[this.x - 1] || [this.defAttr, ' '];
+  var param = params[0] || 1;
+  var line = this._getLine(this.ybase + this.y);
+  var ch = line[this.x - 1] || [this.defAttr, ' '];
 
   while (param--) {
     line[this.x] = ch;
@@ -4663,7 +4623,6 @@ Terminal.prototype.tabClear = function(params) {
 //     Ps = 1  0  -> Print composed display, ignores DECPEX.
 //     Ps = 1  1  -> Print all pages.
 Terminal.prototype.mediaCopy = function(params) {
-  ;
 };
 
 // CSI > Ps; Ps m
@@ -4679,7 +4638,6 @@ Terminal.prototype.mediaCopy = function(params) {
 //   If no parameters are given, all resources are reset to their
 //   initial values.
 Terminal.prototype.setResources = function(params) {
-  ;
 };
 
 // CSI > Ps n
@@ -4696,7 +4654,6 @@ Terminal.prototype.setResources = function(params) {
 //   adding a parameter to each function key to denote the modi-
 //   fiers.
 Terminal.prototype.disableModifiers = function(params) {
-  ;
 };
 
 // CSI > Ps p
@@ -4708,7 +4665,6 @@ Terminal.prototype.disableModifiers = function(params) {
 //     Ps = 2  -> always hide the pointer.  If no parameter is
 //     given, xterm uses the default, which is 1 .
 Terminal.prototype.setPointerMode = function(params) {
-  ;
 };
 
 // CSI ! p   Soft terminal reset (DECSTR).
@@ -4740,7 +4696,6 @@ Terminal.prototype.softReset = function(params) {
 //     3 - permanently set
 //     4 - permanently reset
 Terminal.prototype.requestAnsiMode = function(params) {
-  ;
 };
 
 // CSI ? Ps$ p
@@ -4749,7 +4704,6 @@ Terminal.prototype.requestAnsiMode = function(params) {
 //   where Ps is the mode number as in DECSET, Pm is the mode value
 //   as in the ANSI DECRQM.
 Terminal.prototype.requestPrivateMode = function(params) {
-  ;
 };
 
 // CSI Ps ; Ps " p
@@ -4763,7 +4717,6 @@ Terminal.prototype.requestPrivateMode = function(params) {
 //     Ps = 1  -> 7-bit controls (always set for VT100).
 //     Ps = 2  -> 8-bit controls.
 Terminal.prototype.setConformanceLevel = function(params) {
-  ;
 };
 
 // CSI Ps q  Load LEDs (DECLL).
@@ -4775,7 +4728,6 @@ Terminal.prototype.setConformanceLevel = function(params) {
 //     Ps = 2  2  -> Extinguish Caps Lock.
 //     Ps = 2  3  -> Extinguish Scroll Lock.
 Terminal.prototype.loadLEDs = function(params) {
-  ;
 };
 
 // CSI Ps SP q
@@ -4786,7 +4738,6 @@ Terminal.prototype.loadLEDs = function(params) {
 //     Ps = 3  -> blinking underline.
 //     Ps = 4  -> steady underline.
 Terminal.prototype.setCursorStyle = function(params) {
-  ;
 };
 
 // CSI Ps " q
@@ -4796,14 +4747,12 @@ Terminal.prototype.setCursorStyle = function(params) {
 //     Ps = 1  -> DECSED and DECSEL cannot erase.
 //     Ps = 2  -> DECSED and DECSEL can erase.
 Terminal.prototype.setCharProtectionAttr = function(params) {
-  ;
 };
 
 // CSI ? Pm r
 //   Restore DEC Private Mode Values.  The value of Ps previously
 //   saved is restored.  Ps values are the same as for DECSET.
 Terminal.prototype.restorePrivateValues = function(params) {
-  ;
 };
 
 // CSI Pt; Pl; Pb; Pr; Ps$ r
@@ -4812,14 +4761,14 @@ Terminal.prototype.restorePrivateValues = function(params) {
 //     Ps denotes the SGR attributes to change: 0, 1, 4, 5, 7.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.setAttrInRectangle = function(params) {
-  var t = params[0]
-    , l = params[1]
-    , b = params[2]
-    , r = params[3]
-    , attr = params[4];
+  var t = params[0];
+  var l = params[1];
+  var b = params[2];
+  var r = params[3];
+  var attr = params[4];
 
-  var line
-    , i;
+  var line;
+  var i;
 
   for (; t < b + 1; t++) {
     line = this._getLine(this.ybase + t);
@@ -4837,7 +4786,6 @@ Terminal.prototype.setAttrInRectangle = function(params) {
 //   Save DEC Private Mode Values.  Ps values are the same as for
 //   DECSET.
 Terminal.prototype.savePrivateValues = function(params) {
-  ;
 };
 
 // CSI Ps ; Ps ; Ps t
@@ -4887,7 +4835,6 @@ Terminal.prototype.savePrivateValues = function(params) {
 //     Ps = 2 3  ;  2  -> Restore xterm window title from stack.
 //     Ps >= 2 4  -> Resize to Ps lines (DECSLPP).
 Terminal.prototype.manipulateWindow = function(params) {
-  ;
 };
 
 // CSI Pt; Pl; Pb; Pr; Ps$ t
@@ -4897,7 +4844,6 @@ Terminal.prototype.manipulateWindow = function(params) {
 //     Ps denotes the attributes to reverse, i.e.,  1, 4, 5, 7.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.reverseAttrInRectangle = function(params) {
-  ;
 };
 
 // CSI > Ps; Ps t
@@ -4909,7 +4855,6 @@ Terminal.prototype.reverseAttrInRectangle = function(params) {
 //     Ps = 3  -> Query window/icon labels using UTF-8.  (See dis-
 //     cussion of "Title Modes")
 Terminal.prototype.setTitleModeFeature = function(params) {
-  ;
 };
 
 // CSI Ps SP t
@@ -4918,7 +4863,6 @@ Terminal.prototype.setTitleModeFeature = function(params) {
 //     Ps = 2 , 3  or 4  -> low.
 //     Ps = 5 , 6 , 7 , or 8  -> high.
 Terminal.prototype.setWarningBellVolume = function(params) {
-  ;
 };
 
 // CSI Ps SP u
@@ -4927,7 +4871,6 @@ Terminal.prototype.setWarningBellVolume = function(params) {
 //     Ps = 2 , 3  or 4  -> low.
 //     Ps = 0 , 5 , 6 , 7 , or 8  -> high.
 Terminal.prototype.setMarginBellVolume = function(params) {
-  ;
 };
 
 // CSI Pt; Pl; Pb; Pr; Pp; Pt; Pl; Pp$ v
@@ -4938,7 +4881,6 @@ Terminal.prototype.setMarginBellVolume = function(params) {
 //     Pp denotes the target page.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.copyRectangle = function(params) {
-  ;
 };
 
 // CSI Pt ; Pl ; Pb ; Pr ' w
@@ -4953,7 +4895,6 @@ Terminal.prototype.copyRectangle = function(params) {
 //   ted, any locator motion will be reported.  DECELR always can-
 //   cels any prevous rectangle definition.
 Terminal.prototype.enableFilterRectangle = function(params) {
-  ;
 };
 
 // CSI Ps x  Request Terminal Parameters (DECREQTPARM).
@@ -4968,7 +4909,6 @@ Terminal.prototype.enableFilterRectangle = function(params) {
 //     Pn = 1  <- clock multiplier.
 //     Pn = 0  <- STP flags.
 Terminal.prototype.requestParameters = function(params) {
-  ;
 };
 
 // CSI Ps x  Select Attribute Change Extent (DECSACE).
@@ -4976,7 +4916,6 @@ Terminal.prototype.requestParameters = function(params) {
 //     Ps = 1  -> from start to end position, wrapped.
 //     Ps = 2  -> rectangle (exact).
 Terminal.prototype.selectChangeExtent = function(params) {
-  ;
 };
 
 // CSI Pc; Pt; Pl; Pb; Pr$ x
@@ -4985,14 +4924,14 @@ Terminal.prototype.selectChangeExtent = function(params) {
 //     Pt; Pl; Pb; Pr denotes the rectangle.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.fillRectangle = function(params) {
-  var ch = params[0]
-    , t = params[1]
-    , l = params[2]
-    , b = params[3]
-    , r = params[4];
+  var ch = params[0];
+  var t = params[1];
+  var l = params[2];
+  var b = params[3];
+  var r = params[4];
 
-  var line
-    , i;
+  var line;
+  var i;
 
   for (; t < b + 1; t++) {
     line = this._getLine(this.ybase + t);
@@ -5019,7 +4958,7 @@ Terminal.prototype.fillRectangle = function(params) {
 //     Pu = 1  <- device physical pixels.
 //     Pu = 2  <- character cells.
 Terminal.prototype.enableLocatorReporting = function(params) {
-  var val = params[0] > 0;
+//  var val = params[0] > 0;
   //this.mouseEvents = val;
   //this.decLocator = val;
 };
@@ -5029,14 +4968,14 @@ Terminal.prototype.enableLocatorReporting = function(params) {
 //     Pt; Pl; Pb; Pr denotes the rectangle.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.eraseRectangle = function(params) {
-  var t = params[0]
-    , l = params[1]
-    , b = params[2]
-    , r = params[3];
+  var t = params[0];
+  var l = params[1];
+  var b = params[2];
+  var r = params[3];
 
-  var line
-    , i
-    , ch;
+  var line;
+  var i;
+  var ch;
 
   ch = [this.eraseAttr(), ' ']; // xterm?
 
@@ -5064,14 +5003,12 @@ Terminal.prototype.eraseRectangle = function(params) {
 //     Ps = 3  -> report button up transitions.
 //     Ps = 4  -> do not report button up transitions.
 Terminal.prototype.setLocatorEvents = function(params) {
-  ;
 };
 
 // CSI Pt; Pl; Pb; Pr$ {
 //   Selective Erase Rectangular Area (DECSERA), VT400 and up.
 //     Pt; Pl; Pb; Pr denotes the rectangle.
 Terminal.prototype.selectiveEraseRectangle = function(params) {
-  ;
 };
 
 // CSI Ps ' |
@@ -5115,17 +5052,17 @@ Terminal.prototype.selectiveEraseRectangle = function(params) {
 //   The ``page'' parameter is not used by xterm, and will be omit-
 //   ted.
 Terminal.prototype.requestLocatorPosition = function(params) {
-  ;
 };
 
 // CSI P m SP }
 // Insert P s Column(s) (default = 1) (DECIC), VT420 and up.
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.insertColumns = function() {
-  var param = params[0]
-    , l = this.ybase + this.rows
-    , ch = [this.eraseAttr(), ' '] // xterm?
-    , i, line;
+  var param = params[0];
+  var l = this.ybase + this.rows;
+  var ch = [this.eraseAttr(), ' ']; // xterm?
+  var i;
+  var line;
 
   while (param--) {
     for (i = this.ybase; i < l; i++) {
@@ -5142,10 +5079,11 @@ Terminal.prototype.insertColumns = function() {
 // Delete P s Column(s) (default = 1) (DECDC), VT420 and up
 // NOTE: xterm doesn't enable this code by default.
 Terminal.prototype.deleteColumns = function() {
-  var param = params[0]
-    , l = this.ybase + this.rows
-    , ch = [this.eraseAttr(), ' '] // xterm?
-    , i, line;
+  var param = params[0];
+  var l = this.ybase + this.rows;
+  var ch = [this.eraseAttr(), ' ']; // xterm?
+  var i;
+  var line;
 
   while (param--) {
     for (i = this.ybase; i < l; i++) {
@@ -5255,8 +5193,10 @@ Terminal.prototype.leaveSearch = function() {
 };
 
 Terminal.prototype.copyBuffer = function(lines) {
-  var lines = lines || this.lines
-    , out = [];
+  var out = [];
+  if (lines === undefined || lines === null) {
+    lines = this.lines;
+  }
 
   for (var y = 0; y < lines.length; y++) {
     out[y] = [];
@@ -5269,8 +5209,8 @@ Terminal.prototype.copyBuffer = function(lines) {
 };
 
 Terminal.prototype.getCopyTextarea = function(text) {
-  var textarea = this._copyTextarea
-    , document = this.document;
+  var textarea = this._copyTextarea;
+  var document = this.document;
 
   if (!textarea) {
     textarea = document.createElement('textarea');
@@ -5295,8 +5235,8 @@ Terminal.prototype.getCopyTextarea = function(text) {
 // NOTE: Only works for primary selection on X11.
 // Non-X11 users should use Ctrl-C instead.
 Terminal.prototype.copyText = function(text) {
-  var self = this
-    , textarea = this.getCopyTextarea();
+  var self = this;
+  var textarea = this.getCopyTextarea();
 
   this.emit('copy', text);
 
@@ -5312,16 +5252,16 @@ Terminal.prototype.copyText = function(text) {
 };
 
 Terminal.prototype.selectText = function(x1, x2, y1, y2) {
-  var ox1
-    , ox2
-    , oy1
-    , oy2
-    , tmp
-    , x
-    , y
-    , xl
-    , attr
-    , line;
+  var ox1;
+  var ox2;
+  var oy1;
+  var oy2;
+  var tmp;
+  var x;
+  var y;
+  var xl;
+  var attr;
+  var line;
 
   if (this._selected) {
     ox1 = this._selected.x1;
@@ -5356,11 +5296,11 @@ Terminal.prototype.selectText = function(x1, x2, y1, y2) {
       
       line = this._getLine(y);
       for (; x <= xl; x++) {
-        if (line[x].old != null) {
+        if (line[x].old !== undefined && line[x].old !== null) {
           //this.lines[y][x][0] = this.lines[y][x].old;
           //delete this.lines[y][x].old;
           attr = line[x].old;
-          delete lines[x].old;
+          delete line[x].old;
           line[x] = [attr, line[x][1]];
         }
       }
@@ -5430,14 +5370,14 @@ Terminal.prototype.selectText = function(x1, x2, y1, y2) {
 };
 
 Terminal.prototype.grabText = function(x1, x2, y1, y2) {
-  var out = ''
-    , buf = ''
-    , ch
-    , x
-    , y
-    , xl
-    , tmp
-    , line;
+  var out = '';
+  var buf = '';
+  var ch;
+  var x;
+  var y;
+  var xl;
+  var tmp;
+  var line;
 
   if (y2 < y1) {
     tmp = x2;
@@ -5516,6 +5456,15 @@ Terminal.prototype.keyPrefix = function(ev, key) {
 };
 
 Terminal.prototype.keySelect = function(ev, key) {
+  var y;
+  var x;
+  var ox;
+  var oy;
+  var oyd;
+  var yb;
+  var line;
+  var saw_space;
+  
   this.showCursor();
 
   if (this.searchMode || key === 'n' || key === 'N') {
@@ -5523,7 +5472,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '\x04') { // ctrl-d
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     if (this.ydisp === this.ybase) {
       // Mimic vim behavior
       this.y = Math.min(this.y + (this.rows - 1) / 2 | 0, this.rows - 1);
@@ -5538,7 +5487,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '\x15') { // ctrl-u
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     if (this.ydisp === 0) {
       // Mimic vim behavior
       this.y = Math.max(this.y - (this.rows - 1) / 2 | 0, 0);
@@ -5553,7 +5502,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '\x06') { // ctrl-f
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     this.scrollDisp(this.rows - 1);
     if (this.visualMode) {
       this.selectText(this.x, this.x, y, this.ydisp + this.y);
@@ -5562,7 +5511,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '\x02') { // ctrl-b
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     this.scrollDisp(-(this.rows - 1));
     if (this.visualMode) {
       this.selectText(this.x, this.x, y, this.ydisp + this.y);
@@ -5571,7 +5520,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'k' || key === '\x1b[A') {
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     this.y--;
     if (this.y < 0) {
       this.y = 0;
@@ -5586,7 +5535,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'j' || key === '\x1b[B') {
-    var y = this.ydisp + this.y;
+    y = this.ydisp + this.y;
     this.y++;
     if (this.y >= this.rows) {
       this.y = this.rows - 1;
@@ -5601,7 +5550,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'h' || key === '\x1b[D') {
-    var x = this.x;
+    x = this.x;
     this.x--;
     if (this.x < 0) {
       this.x = 0;
@@ -5615,7 +5564,7 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'l' || key === '\x1b[C') {
-    var x = this.x;
+    x = this.x;
     this.x++;
     if (this.x >= this.cols) {
       this.x = this.cols - 1;
@@ -5659,17 +5608,17 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'w' || key === 'W') {
-    var ox = this.x;
-    var oy = this.y;
-    var oyd = this.ydisp;
+    ox = this.x;
+    oy = this.y;
+    oyd = this.ydisp;
 
-    var x = this.x;
-    var y = this.y;
-    var yb = this.ydisp;
-    var saw_space = false;
+    x = this.x;
+    y = this.y;
+    yb = this.ydisp;
+    saw_space = false;
 
     for (;;) {
-      var line = this._getLine(yb + y);
+      line = this._getLine(yb + y);
       while (x < this.cols) {
         if (line[x][1] <= ' ') {
           saw_space = true;
@@ -5694,7 +5643,8 @@ Terminal.prototype.keySelect = function(ev, key) {
       break;
     }
 
-    this.x = x, this.y = y;
+    this.x = x;
+    this.y = y;
     this.scrollDisp(-this.ydisp + yb);
 
     if (this.visualMode) {
@@ -5704,17 +5654,17 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'b' || key === 'B') {
-    var ox = this.x;
-    var oy = this.y;
-    var oyd = this.ydisp;
+    ox = this.x;
+    oy = this.y;
+    oyd = this.ydisp;
 
-    var x = this.x;
-    var y = this.y;
-    var yb = this.ydisp;
+    x = this.x;
+    y = this.y;
+    yb = this.ydisp;
 
     for (;;) {
-      var line = this._getLine(yb + y);
-      var saw_space = x > 0 && line[x][1] > ' ' && line[x - 1][1] > ' ';
+      line = this._getLine(yb + y);
+      saw_space = x > 0 && line[x][1] > ' ' && line[x - 1][1] > ' ';
       while (x >= 0) {
         if (line[x][1] <= ' ') {
           if (saw_space && (x + 1 < this.cols && line[x + 1][1] > ' ')) {
@@ -5742,7 +5692,8 @@ Terminal.prototype.keySelect = function(ev, key) {
       break;
     }
 
-    this.x = x, this.y = y;
+    this.x = x;
+    this.y = y;
     this.scrollDisp(-this.ydisp + yb);
 
     if (this.visualMode) {
@@ -5752,13 +5703,13 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'e' || key === 'E') {
-    var x = this.x + 1;
-    var y = this.y;
-    var yb = this.ydisp;
+    x = this.x + 1;
+    y = this.y;
+    yb = this.ydisp;
     if (x >= this.cols) x--;
 
     for (;;) {
-      var line = this._getLine(yb + y);
+      line = this._getLine(yb + y);
       while (x < this.cols) {
         if (line[x][1] <= ' ') {
           x++;
@@ -5790,7 +5741,8 @@ Terminal.prototype.keySelect = function(ev, key) {
       break;
     }
 
-    this.x = x, this.y = y;
+    this.x = x;
+    this.y = y;
     this.scrollDisp(-this.ydisp + yb);
 
     if (this.visualMode) {
@@ -5800,13 +5752,13 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '^' || key === '0') {
-    var ox = this.x;
+    ox = this.x;
 
     if (key === '0') {
       this.x = 0;
     } else if (key === '^') {
-      var line = this._getLine(this.ydisp + this.y);
-      var x = 0;
+      line = this._getLine(this.ydisp + this.y);
+      x = 0;
       while (x < this.cols) {
         if (line[x][1] > ' ') {
           break;
@@ -5826,9 +5778,9 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '$') {
-    var ox = this.x;
-    var line = this._getLine(this.ydisp + this.y);
-    var x = this.cols - 1;
+    ox = this.x;
+    line = this._getLine(this.ydisp + this.y);
+    x = this.cols - 1;
     while (x >= 0) {
       if (line[x][1] > ' ') {
         if (this.visualMode && x < this.cols - 1) x++;
@@ -5847,14 +5799,16 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'g' || key === 'G') {
-    var ox = this.x;
-    var oy = this.y;
-    var oyd = this.ydisp;
+    ox = this.x;
+    oy = this.y;
+    oyd = this.ydisp;
     if (key === 'g') {
-      this.x = 0, this.y = 0;
+      this.x = 0;
+      this.y = 0;
       this.scrollDisp(-this.ydisp);
     } else if (key === 'G') {
-      this.x = 0, this.y = this.rows - 1;
+      this.x = 0;
+      this.y = this.rows - 1;
       this.scrollDisp(this.ybase);
     }
     if (this.visualMode) {
@@ -5864,14 +5818,17 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === 'H' || key === 'M' || key === 'L') {
-    var ox = this.x;
-    var oy = this.y;
+    ox = this.x;
+    oy = this.y;
     if (key === 'H') {
-      this.x = 0, this.y = 0;
+      this.x = 0;
+      this.y = 0;
     } else if (key === 'M') {
-      this.x = 0, this.y = this.rows / 2 | 0;
+      this.x = 0;
+      this.y = this.rows / 2 | 0;
     } else if (key === 'L') {
-      this.x = 0, this.y = this.rows - 1;
+      this.x = 0;
+      this.y = this.rows - 1;
     }
     if (this.visualMode) {
       this.selectText(ox, this.x, this.ydisp + oy, this.ydisp + this.y);
@@ -5883,16 +5840,15 @@ Terminal.prototype.keySelect = function(ev, key) {
   }
 
   if (key === '{' || key === '}') {
-    var ox = this.x;
-    var oy = this.y;
-    var oyd = this.ydisp;
+    ox = this.x;
+    oy = this.y;
+    oyd = this.ydisp;
 
-    var line;
     var saw_full = false;
     var found = false;
     var first_is_space = -1;
-    var y = this.y + (key === '{' ? -1 : 1);
-    var yb = this.ydisp;
+    y = this.y + (key === '{' ? -1 : 1);
+    yb = this.ydisp;
     var i;
 
     if (key === '{') {
@@ -5958,7 +5914,8 @@ Terminal.prototype.keySelect = function(ev, key) {
       }
     }
 
-    this.x = 0, this.y = y;
+    this.x = 0;
+    this.y = y;
     this.scrollDisp(-this.ydisp + yb);
 
     if (this.visualMode) {
@@ -5978,6 +5935,9 @@ Terminal.prototype.keySelect = function(ev, key) {
 };
 
 Terminal.prototype.keySearch = function(ev, key) {
+  var i;
+  var bottom;
+  
   if (key === '\x1b') {
     this.leaveSearch();
     return;
@@ -6002,10 +5962,8 @@ Terminal.prototype.keySearch = function(ev, key) {
     var wrapped = false;
     var x = this.x + 1;
     var y = this.ydisp + this.y;
-    var yb, i;
-    var up = key === 'N'
-      ? this.searchDown
-      : !this.searchDown;
+    var yb;
+    var up = key === 'N' ? this.searchDown : !this.searchDown;
 
     for (;;) {
       line = this.getLine(y);
@@ -6059,7 +6017,8 @@ Terminal.prototype.keySearch = function(ev, key) {
         y -= this.ybase;
       }
 
-      this.x = x, this.y = y;
+      this.x = x;
+      this.y = y;
       this.scrollDisp(-this.ydisp + yb);
 
       if (this.visualMode) {
@@ -6076,14 +6035,11 @@ Terminal.prototype.keySearch = function(ev, key) {
 
   if (key === '\b' || key === '\x7f') {
     if (this.entry.length === 0) return;
-    var bottom = this.ydisp + this.rows - 1;
+    bottom = this.ydisp + this.rows - 1;
     this.entry = this.entry.slice(0, -1);
-    var i = this.entryPrefix.length + this.entry.length;
+    i = this.entryPrefix.length + this.entry.length;
     //this.lines[bottom][i][1] = ' ';
-    this._getLine(bottom)[i] = [
-      this._getLine(bottom)[i][0],
-      ' '
-    ];
+    this._getLine(bottom)[i] = [ this._getLine(bottom)[i][0], ' ' ];
     this.x--;
     this.refresh(this.rows - 1, this.rows - 1);
     this.refresh(this.y, this.y);
@@ -6091,15 +6047,12 @@ Terminal.prototype.keySearch = function(ev, key) {
   }
 
   if (key.length === 1 && key >= ' ' && key <= '~') {
-    var bottom = this.ydisp + this.rows - 1;
+    bottom = this.ydisp + this.rows - 1;
     this.entry += key;
-    var i = this.entryPrefix.length + this.entry.length - 1;
+    i = this.entryPrefix.length + this.entry.length - 1;
     //this.lines[bottom][i][0] = (this.defAttr & ~0x1ff) | 4;
     //this.lines[bottom][i][1] = key;
-    this._getLine(bottom)[i] = [
-      (this.defAttr & ~0x1ff) | 4,
-      key
-    ];
+    this._getLine(bottom)[i] = [ (this.defAttr & ~0x1ff) | 4, key ];
     this.x++;
     this.refresh(this.rows - 1, this.rows - 1);
     this.refresh(this.y, this.y);
@@ -6227,30 +6180,30 @@ function indexOf(obj, el) {
 
 function isWide(ch) {
   if (ch <= '\uff00') return false;
-  return (ch >= '\uff01' && ch <= '\uffbe')
-      || (ch >= '\uffc2' && ch <= '\uffc7')
-      || (ch >= '\uffca' && ch <= '\uffcf')
-      || (ch >= '\uffd2' && ch <= '\uffd7')
-      || (ch >= '\uffda' && ch <= '\uffdc')
-      || (ch >= '\uffe0' && ch <= '\uffe6')
-      || (ch >= '\uffe8' && ch <= '\uffee');
+  return (ch >= '\uff01' && ch <= '\uffbe') ||
+      (ch >= '\uffc2' && ch <= '\uffc7') ||
+      (ch >= '\uffca' && ch <= '\uffcf') ||
+      (ch >= '\uffd2' && ch <= '\uffd7') ||
+      (ch >= '\uffda' && ch <= '\uffdc') ||
+      (ch >= '\uffe0' && ch <= '\uffe6') ||
+      (ch >= '\uffe8' && ch <= '\uffee');
 }
 
 function matchColor(r1, g1, b1) {
   var hash = (r1 << 16) | (g1 << 8) | b1;
 
-  if (matchColor._cache[hash] != null) {
+  if (matchColor._cache[hash] !== undefined) {
     return matchColor._cache[hash];
   }
 
-  var ldiff = Infinity
-    , li = -1
-    , i = 0
-    , c
-    , r2
-    , g2
-    , b2
-    , diff;
+  var ldiff = Infinity;
+  var li = -1;
+  var i = 0;
+  var c;
+  var r2;
+  var g2;
+  var b2;
+  var diff;
 
   for (; i < Terminal.vcolors.length; i++) {
     c = Terminal.vcolors[i];
@@ -6271,16 +6224,17 @@ function matchColor(r1, g1, b1) {
     }
   }
 
-  return matchColor._cache[hash] = li;
+  matchColor._cache[hash] = li;
+  return li;
 }
 
 matchColor._cache = {};
 
 // http://stackoverflow.com/questions/1633828
 matchColor.distance = function(r1, g1, b1, r2, g2, b2) {
-  return Math.pow(30 * (r1 - r2), 2)
-    + Math.pow(59 * (g1 - g2), 2)
-    + Math.pow(11 * (b1 - b2), 2);
+  return Math.pow(30 * (r1 - r2), 2) +
+    Math.pow(59 * (g1 - g2), 2) +
+    Math.pow(11 * (b1 - b2), 2);
 };
 
 function each(obj, iter, con) {

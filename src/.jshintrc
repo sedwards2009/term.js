@@ -1,0 +1,5 @@
+{
+  "predef": [ "window", "define"],
+  "undef": true,
+  "unused": true
+}
