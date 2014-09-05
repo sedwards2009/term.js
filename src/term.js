@@ -740,15 +740,9 @@ Terminal.prototype.moveRowsToScrollback = function() {
  * @param {Element} element The DOM element to append.
  */
 Terminal.prototype.appendElement = function(element) {
-  var scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
   
   this.moveRowsToScrollback();
   this.element.appendChild(element);
-  
-  if (scrollatbottom) {
-    // Scroll the terminal down to the bottom.
-    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
-  }
 };
 
 Terminal.prototype._getLine = function(row) {
@@ -870,7 +864,7 @@ Terminal.prototype.open = function(parent) {
       self.element.contentEditable = 'inherit'; // 'false';
     }, 1);
   }, true);
-
+  
   // Listen for mouse events and translate
   // them into terminal mouse protocols.
   this.bindMouse();
@@ -1288,21 +1282,8 @@ Terminal.prototype._scheduleRefresh = function(immediate) {
  * Usually call via a timer.
  */
 Terminal.prototype._refreshFrame = function() {
-  var scrollatbottom;
-//console.log("_refreshFrame");
-  // Is the terminal scrolled down to the bottom now?
-  scrollatbottom = false;
-  if (this.physicalScroll) {
-    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
-  }
-
   this.refresh(this.refreshStart, this.refreshEnd);
   this._refreshScrollback();
-
-  if (scrollatbottom) {
-    // Scroll the terminal down to the bottom.
-    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
-  }
   this.refreshStart = REFRESH_START_NULL;
   this.refreshEnd = REFRESH_END_NULL;
 };
@@ -1625,7 +1606,9 @@ Terminal.prototype.scroll = function() {
 
 // Physical scroll to the bottom.
 Terminal.prototype.scrollToBottom = function() {
-  this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
+  var newScrollPosition = this.element.scrollHeight - this.element.clientHeight;
+  this.element.scrollTop = newScrollPosition;
+  this.emit('manual-scroll', { position: newScrollPosition, isBottom: true });
 };
 
 Terminal.prototype.isScrollAtBottom = function() {
@@ -2802,7 +2785,8 @@ Terminal.prototype.writeln = function(data) {
 Terminal.prototype.keyDown = function(ev) {
   var self = this;
   var key = null;
-
+  var newScrollPosition;
+  
   switch (ev.keyCode) {
     // backspace
     case 8:
@@ -2925,7 +2909,9 @@ Terminal.prototype.keyDown = function(ev) {
           this.scrollDisp(-(this.rows - 1));
         } else {
           // Scroll using the DOM.
-          this.element.scrollTop = Math.max(0, this.element.scrollTop - (this.element.clientHeight / 2));
+          newScrollPosition = Math.max(0, this.element.scrollTop - (this.element.clientHeight / 2));
+          this.element.scrollTop = newScrollPosition;
+          this.emit('manual-scroll', { position: newScrollPosition, isBottom: this.isScrollAtBottom() });
         }
         return cancel(ev);
       } else {
@@ -2940,8 +2926,10 @@ Terminal.prototype.keyDown = function(ev) {
           this.scrollDisp(this.rows - 1);
         } else {
           // Scroll using the DOM.
-          this.element.scrollTop = Math.min(this.element.scrollHeight - this.element.clientHeight,
+          newScrollPosition = Math.min(this.element.scrollHeight - this.element.clientHeight,
                                             this.element.scrollTop + (this.element.clientHeight / 2));
+          this.element.scrollTop = newScrollPosition;
+          this.emit('manual-scroll', { position: newScrollPosition, isBottom: this.isScrollAtBottom() });
         }
         return cancel(ev);
       } else {
@@ -3272,7 +3260,6 @@ Terminal.prototype.resizeToContainer = function() {
   var newCols;
   var newRows;
   var range;
-  var scrollatbottom;
   var lineEl = this.children[0];
   var computedStyle;
   var width;
@@ -3299,15 +3286,7 @@ Terminal.prototype.resizeToContainer = function() {
   newRows = Math.floor(this.element.clientHeight / charHeight);
 
   this.resize(newCols, newRows);
-  
-  scrollatbottom = false;
-  if (this.physicalScroll) {
-    scrollatbottom = (this.element.scrollHeight - this.element.clientHeight) === this.element.scrollTop;
-  }
   this._setLastLinePadding(Math.floor(this.element.clientHeight % charHeight));
-  if (scrollatbottom) {
-    this.element.scrollTop = this.element.scrollHeight - this.element.clientHeight;
-  }
   return {cols: newCols, rows: newRows};
 };
 
